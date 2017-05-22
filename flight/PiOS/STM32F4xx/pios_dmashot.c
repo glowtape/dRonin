@@ -28,6 +28,8 @@
  */
 
 #include <pios.h>
+#include "pios_quickdma.h"
+
 #include "pios_dmashot.h"
 
 #define MAX_TIMERS                              8
@@ -60,6 +62,7 @@ struct servo_timer {
 	union dma_buffer buffer;                                                        // DMA buffer
 	uint8_t dma_started;                                                            // Whether DMA transfers have been initiated
 
+	quickdma_transfer_t qdma;                                                       // QuickDMA configuration
 };
 
 // DShot signal is 16-bit. Use a pause before and after to delimit signal and quell the timer CC
@@ -386,51 +389,33 @@ void PIOS_DMAShot_InitializeTimers(TIM_OCInitTypeDef *ocinit)
 
 static void PIOS_DMAShot_DMASetup(struct servo_timer *s_timer)
 {
-	DMA_Cmd(s_timer->dma->stream, DISABLE);
-	while (DMA_GetCmdStatus(s_timer->dma->stream) == ENABLE) ;
+	quickdma_transfer_t qdma;
 
-	DMA_DeInit(s_timer->dma->stream);
+	if (!s_timer->qdma) {
+		qdma = quickdma_initialize(s_timer->dma->stream, s_timer->dma->channel, true);
+		s_timer->qdma = qdma;
+	} else {
+		qdma = s_timer->qdma;
+	}
 
-	DMA_InitTypeDef dma;
-	DMA_StructInit(&dma);
+	quickdma_stop_transfer(qdma);
 
-	dma.DMA_Channel = s_timer->dma->channel;
-	dma.DMA_Memory0BaseAddr = s_timer->buffer.ptr;
+	uint32_t periph_base_addr = (uint32_t)(&s_timer->dma->timer->DMAR);
 	if (s_timer->dma->master_timer) {
 		// The DMABase shift is in count of 32-bit registers. 16-bit registers are padded with 16-bit reserved ones,
 		// and thus defacto 32-bit.
-		dma.DMA_PeripheralBaseAddr = ((uint32_t)&s_timer->dma->timer->CR1) + ((s_timer->dma->master_config & 0x00FF) << 2);
-	} else {
-		dma.DMA_PeripheralBaseAddr = (uint32_t)(&s_timer->dma->timer->DMAR);
+		periph_base_addr = ((uint32_t)&s_timer->dma->timer->CR1) + ((s_timer->dma->master_config & 0x00FF) << 2);
 	}
 
+	uint8_t datasz = QUICKDMA_SIZE_WORD;
 	if (PIOS_DMAShot_HalfWord(s_timer)) {
-		dma.DMA_MemoryDataSize = DMA_MemoryDataSize_HalfWord;
-		dma.DMA_PeripheralDataSize = DMA_PeripheralDataSize_HalfWord;
-	} else {
-		dma.DMA_MemoryDataSize = DMA_MemoryDataSize_Word;
-		dma.DMA_PeripheralDataSize = DMA_PeripheralDataSize_Word;
+		datasz = QUICKDMA_SIZE_HALFWORD;
 	}
 
-	dma.DMA_MemoryInc = DMA_MemoryInc_Enable;
-	dma.DMA_PeripheralInc = DMA_PeripheralInc_Disable;
+	uint16_t bufsz = PIOS_DMAShot_GetNumChannels(s_timer) * DMASHOT_STM32_BUFFER;
 
-	dma.DMA_DIR = DMA_DIR_MemoryToPeripheral;
-	dma.DMA_Mode = DMA_Mode_Normal;
-
-	dma.DMA_BufferSize = PIOS_DMAShot_GetNumChannels(s_timer) * DMASHOT_STM32_BUFFER;
-
-	dma.DMA_Priority = DMA_Priority_VeryHigh;
-	dma.DMA_MemoryBurst = DMA_MemoryBurst_INC4;
-	dma.DMA_PeripheralBurst = DMA_PeripheralBurst_Single;
-
-	dma.DMA_FIFOMode = DMA_FIFOMode_Enable;
-	dma.DMA_FIFOThreshold = DMA_FIFOThreshold_Full;
-
-	DMA_Init(s_timer->dma->stream, &dma);
-
-	// Don't do interrupts.
-	DMA_ITConfig(s_timer->dma->stream, DMA_IT_TC, DISABLE);
+	quickdma_mem_to_peripheral(qdma, s_timer->buffer.ptr, periph_base_addr, bufsz, datasz);
+	quickdma_set_priority(qdma, QUICKDMA_PRIORITY_VERYHIGH);
 }
 
 // Allocates an aligned buffer for DMA burst transfers. Returns uint32_t, since
@@ -485,12 +470,8 @@ void PIOS_DMAShot_TriggerUpdate()
 			continue;
 
 		// Wait for DMA to finish.
-		if(s_timer->dma_started) {
-			while(DMA_GetFlagStatus(s_timer->dma->stream, s_timer->dma->tcif) != SET) ;
-		}
-
-		DMA_Cmd(s_timer->dma->stream, DISABLE);
-		while (DMA_GetCmdStatus(s_timer->dma->stream) == ENABLE) ;
+		quickdma_wait_for_transfer(s_timer->qdma);
+		quickdma_stop_transfer(s_timer->qdma);
 
 		if (s_timer->dma->master_timer) {
 			TIM_DMACmd(s_timer->dma->master_timer,
@@ -505,9 +486,6 @@ void PIOS_DMAShot_TriggerUpdate()
 
 		TIM_Cmd(s_timer->dma->timer, DISABLE);
 		TIM_SetCounter(s_timer->dma->timer, 0);
-
-		DMA_ClearFlag(s_timer->dma->stream, s_timer->dma->tcif);
-		DMA_SetCurrDataCounter(s_timer->dma->stream, PIOS_DMAShot_GetNumChannels(s_timer) * DMASHOT_STM32_BUFFER);
 	}
 
 	// Re-enable the timers and DMA in a separate loop, to make the signals line up better.
@@ -532,7 +510,7 @@ void PIOS_DMAShot_TriggerUpdate()
 			TIM_Cmd(s_timer->dma->timer, ENABLE);
 		}
 
-		DMA_Cmd(s_timer->dma->stream, ENABLE);
+		quickdma_start_transfer(s_timer->qdma);
 		s_timer->dma_started = 1;
 	}
 }
