@@ -975,30 +975,38 @@ TIM5 C1, C2
 static const struct pios_dmashot_timer_cfg dmashot_tim_cfg[] = {
 	{
 		.timer = TIM8,
-		.stream = DMA2_Stream1,
-		.channel = DMA_Channel_7,
-		.tcif = DMA_FLAG_TCIF1,
+		.dma = {
+			.stream = DMA2_Stream1,
+			.channel = DMA_Channel_7,
+			.fifo = 1
+		}
 	},
 	{
 		.timer = TIM14,
 		.master_timer = TIM4,
 		.master_config = TIM_DMA_Update | TIM_DMABase_CCR1,
 
-		.stream = DMA1_Stream6,
-		.channel = DMA_Channel_2,
-		.tcif = DMA_FLAG_TCIF6,
+		.dma = {
+			.stream = DMA1_Stream6,
+			.channel = DMA_Channel_2,
+			.fifo = 1
+		}
 	},
 	{
 		.timer = TIM3,
-		.stream = DMA1_Stream2,
-		.channel = DMA_Channel_5,
-		.tcif = DMA_FLAG_TCIF2,
+		.dma = {
+			.stream = DMA1_Stream2,
+			.channel = DMA_Channel_5,
+			.fifo = 1
+		}
 	},
 	{
 		.timer = TIM5,
-		.stream = DMA1_Stream0,
-		.channel = DMA_Channel_6,
-		.tcif = DMA_FLAG_TCIF0,
+		.dma = {
+			.stream = DMA1_Stream0,
+			.channel = DMA_Channel_6,
+			.fifo = 1
+		}
 	}
 };
 
