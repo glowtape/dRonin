@@ -392,7 +392,7 @@ static void PIOS_DMAShot_DMASetup(struct servo_timer *s_timer)
 	quickdma_transfer_t qdma;
 
 	if (!s_timer->qdma) {
-		qdma = quickdma_initialize(s_timer->dma->stream, s_timer->dma->channel, true);
+		qdma = quickdma_initialize(&s_timer->dma->dma);
 		s_timer->qdma = qdma;
 	} else {
 		qdma = s_timer->qdma;
@@ -466,7 +466,7 @@ void PIOS_DMAShot_TriggerUpdate()
 
 	for (int i = 0; i < MAX_TIMERS; i++) {
 		struct servo_timer *s_timer = servo_timers[i];
-		if (!s_timer || !s_timer->sysclock)
+		if (!s_timer || !s_timer->sysclock || !s_timer->qdma || !s_timer->dma_started)
 			continue;
 
 		// Wait for DMA to finish.
@@ -491,7 +491,7 @@ void PIOS_DMAShot_TriggerUpdate()
 	// Re-enable the timers and DMA in a separate loop, to make the signals line up better.
 	for (int i = 0; i < MAX_TIMERS; i++) {
 		struct servo_timer *s_timer = servo_timers[i];
-		if (!s_timer || !s_timer->sysclock)
+		if (!s_timer || !s_timer->sysclock || !s_timer->qdma)
 			continue;
 
 		if (s_timer->dma->master_timer) {

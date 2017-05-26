@@ -37,6 +37,8 @@
 
 #include "pios_tim_priv.h"
 
+#include "pios_quickdma.h"
+
 // Frequencies.
 #define DMASHOT_150                                             150000
 #define DMASHOT_300                                             300000
@@ -51,9 +53,7 @@
 struct pios_dmashot_timer_cfg {
 
 	TIM_TypeDef *timer;
-	DMA_Stream_TypeDef *stream;
-	uint32_t channel;
-	uint32_t tcif;
+	struct quickdma_config dma;
 
 	TIM_TypeDef *master_timer;
 	uint16_t master_config;
