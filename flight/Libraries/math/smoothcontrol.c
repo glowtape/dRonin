@@ -63,6 +63,20 @@ static void smoothcontrol_update(smoothcontrol_state state, struct smoothcontrol
 			axis->integrator_timeout = (uint8_t)MIN((float)state->control_interval *
 				(axis->mode == SMOOTHCONTROL_NORMAL ? SMOOTHCONTROL_DUTY_CYCLE : SMOOTHCONTROL_EXTENDED_DUTY_CYCLE), 255);
 			break;
+
+		case SMOOTHCONTROL_LINEAR:
+			axis->differential = (new_signal - axis->current) / (float)state->control_interval;
+			axis->integrator_timeout = state->control_interval;
+			break;
+
+		case SMOOTHCONTROL_LINEARPREDICT:
+			;
+			float target = axis->signal + signal_diff * SMOOTHCONTROL_CHAMFER_START +
+				signal_diff * SMOOTHCONTROL_PREDICTOR_SLOPE * SMOOTHCONTROL_EXTENDED_DUTY_CYCLE;
+
+			axis->differential = (target - axis->current) / (float)state->control_interval;
+			axis->integrator_timeout = state->control_interval;
+			break;
 	}
 
 	axis->signal = new_signal;

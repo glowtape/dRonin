@@ -27,6 +27,12 @@ enum {
 
 	// Same but with extended duty cycle.
 	SMOOTHCONTROL_EXTENDED,
+
+	// Linear interpolate control input.
+	SMOOTHCONTROL_LINEAR,
+
+	// Linear interpolate between extended predicts.
+	SMOOTHCONTROL_LINEARPREDICT,
 };
 
 typedef struct smoothcontrol_state_internal* smoothcontrol_state;
