@@ -496,7 +496,16 @@ bool PIOS_Sensors_WaitOn(pios_sensor_t s, int timeout)
 {
 	PIOS_Assert(s);
 
-	if (s->flags & PIOS_SENSORS_FLAG_QUEUE) {
+	if (s->flags & PIOS_SENSORS_FLAG_MISSING) {
+		/* Fail directly, if the sensor is declared missing. */
+		return false;
+	} else if (s->flags & PIOS_SENSORS_FLAG_QUEUE) {
+		/* Check if the sensor's fully registered. */
+		if (s->flags & PIOS_SENSORS_FLAG_EARLY_REG) {
+			/* We shouldn't even get here, if things went well during board init. */
+			s->flags |= PIOS_SENSORS_FLAG_MISSING;
+			return false;
+		}
 		/* If we're waiting on a wrapped queued sensor, dump
 		   the data in a holding buffer. */
 		if (!s->v.data) {
