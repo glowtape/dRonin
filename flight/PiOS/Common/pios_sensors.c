@@ -296,7 +296,7 @@ void PIOS_Sensors_RaiseSignal_FromISR(pios_sensor_t s)
 bool PIOS_Sensors_Available(enum pios_sensor_type sensor_type)
 {
 	PIOS_Assert(sensor_type < PIOS_SENSOR_LAST);
-	return info[sensor_type] && info[sensor_type]->callback;
+	return info[sensor_type] && (info[sensor_type]->callback || info[sensor_type]->u.queue);
 }
 
 /*
