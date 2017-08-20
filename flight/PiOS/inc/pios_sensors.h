@@ -144,15 +144,16 @@ typedef struct pios_sensors_info* pios_sensor_t;
 
 /* Nothing special. */
 #define PIOS_SENSORS_FLAG_NONE						0
-/* Create a semaphore the sensor can trigger and used with _wait_on. */
+/* Create a semaphore the sensor can trigger and used with _WaitOn. */
 #define PIOS_SENSORS_FLAG_SEMAPHORE					0x0010
-/* Forces a specified pause between updates. */
+/* Sensor is polled, runs on a specified schedule. */
 #define PIOS_SENSORS_FLAG_SCHEDULED					0x0020
-/* For internal use, remapping old queues. */
+/* For internal use, remapping old queues to the new sensor code. */
 #define PIOS_SENSORS_FLAG_QUEUE						0x0040
 /* If this is set, the sensor is considered a goner. */
 #define PIOS_SENSORS_FLAG_MISSING					0x0080
-/* Marks a sensor registration as an early registration. To deal with the old stuff. */
+/* Marks a sensor as an early registration. To deal with old sensors updating
+   settings before the sensor is actually registered. */
 #define PIOS_SENSORS_FLAG_EARLY_REG						0x0100
 
 /* Sensor is doing (async) work with I2C. */

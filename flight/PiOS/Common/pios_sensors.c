@@ -287,7 +287,7 @@ void PIOS_Sensors_RaiseSignal_FromISR(pios_sensor_t s)
 }
 
 /*
- * @brief Tells whether a sensor of a type of registered.
+ * @brief Tells whether a sensor of a type has been registered.
  *
  * @param[in] sensor_type		Type of sensor (PIOS_SENSOR_*)
  *
@@ -300,7 +300,7 @@ bool PIOS_Sensors_Available(enum pios_sensor_type sensor_type)
 }
 
 /*
- * @brief Checks whether a scheduled sensor is due to run.
+ * @brief Checks whether a scheduled/polled sensor is due to run.
  */
 inline bool PIOS_Sensors_Unpause(pios_sensor_t s)
 {
@@ -342,7 +342,7 @@ int PIOS_Sensors_Cue(pios_sensor_t s)
 }
 
 /*
- * @brief Retrieves (potential) data for a sensor of a type.
+ * @brief Retrieves (potential) new data for a sensor of a type.
  *
  * @param[in] s					Sensor handle.
  * @param[out] output			The memory pointer to write to.
@@ -418,7 +418,7 @@ int PIOS_Sensors_GetData(pios_sensor_t s, void *output)
 }
 
 /*
- * @brief Returns the least recently used sensor type.
+ * @brief Returns the least recently used sensor type, that isn't a gyro or accelerometer.
  *
  * @returns Sensor type (PIOS_SENSOR_*) that's up next, otherwise 0xFF.
  */
@@ -459,7 +459,7 @@ uint8_t PIOS_Sensors_GetLRU()
 }
 
 /*
- * @brief Returns the range of a sensor.
+ * @brief Returns the range of a sensor. Assumed symmetric depending on sensor type.
  *
  * @param[in] s					Sensor handle.
  *
@@ -531,7 +531,7 @@ bool PIOS_Sensors_WaitOn(pios_sensor_t s, int timeout)
 }
 
 /*
- * @brief Schedules the updates of a sensor.
+ * @brief Sets the desired time between polls on a sensor.
  *
  * @param[in] s					Sensor handle.
  * @param[in] microseconds		Desired time between updates in microseconds.
