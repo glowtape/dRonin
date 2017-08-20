@@ -553,14 +553,7 @@ void PIOS_Sensors_SetMissing(enum pios_sensor_type sensor_type)
 	PIOS_Assert(sensor_type < PIOS_SENSOR_LAST);
 	pios_sensor_t s = info[sensor_type];
 
-	if (!s) {
-		// Likely the initialization routine of the sensor failed before
-		// _register got called and pios_board wants to set it missing.
-		// Register after the fact.
-		s = PIOS_Sensors_Allocate(sensor_type);
-	}
-
-	s->flags |= PIOS_SENSORS_FLAG_MISSING;
+	if (s) s->flags |= PIOS_SENSORS_FLAG_MISSING;
 }
 
 /*
