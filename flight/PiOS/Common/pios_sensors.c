@@ -177,7 +177,7 @@ pios_sensor_t PIOS_Sensors_Allocate(enum pios_sensor_type sensor_type)
 
 	if (info[sensor_type]) {
 		// Only multiple gyros and accels supported for now.
-		PIOS_Assert(0);
+		// PIOS_Assert(0);
 	}
 
 	pios_sensor_t s = PIOS_malloc_no_dma(sizeof(*s));
@@ -187,7 +187,11 @@ pios_sensor_t PIOS_Sensors_Allocate(enum pios_sensor_type sensor_type)
 	if (!info[sensor_type]) {
 		info[sensor_type] = s;
 	} else {
-		PIOS_Assert(0);
+		pios_sensor_t x = info[sensor_type];
+		while (x->w.next) x = x->w.next;
+		x->w.next = s;
+
+		s->flags |= PIOS_SENSORS_FLAG_SECONDARY;
 	}
 
 	return s;
@@ -216,7 +220,7 @@ pios_sensor_t PIOS_Sensors_Register(enum pios_sensor_type sensor_type, void *dev
 
 	pios_sensor_t s = PIOS_Sensors_Allocate(sensor_type);
 
-	s->flags = flags;
+	s->flags |= flags;
 	s->callback = callback;
 	s->v.cue_call = cue_call;
 	s->device = device;
@@ -405,7 +409,7 @@ int PIOS_Sensors_GetData(pios_sensor_t s, void *output)
 
 	/* If sensor updated or is polled/scheduled, go do some stuff. Scheduled sensors should
 	   be gated on _get_lru, so we don't check here whether they're actually up for duty. */
-	if (s->updated || ((s->flags & PIOS_SENSORS_FLAG_SCHEDULED) && PIOS_Sensors_Unpause(s))) {
+	if (s->updated || ((s->flags & PIOS_SENSORS_FLAG_SCHEDULED) && PIOS_Sensors_Unpause(s)) || (s->flags & PIOS_SENSORS_FLAG_SECONDARY)) {
 		data_state = s->callback(s->device, output);
 		s->updated = false;
 		s->last_update = PIOS_DELAY_GetuS();
@@ -606,4 +610,11 @@ pios_sensor_t PIOS_Sensors_GetSensor(enum pios_sensor_type sensor_type)
 {
 	PIOS_Assert(sensor_type < PIOS_SENSOR_LAST);
 	return info[sensor_type];
+}
+
+
+pios_sensor_t PIOS_Sensors_GetSecondarySensor(pios_sensor_t psensor)
+{
+	PIOS_Assert(psensor);
+	return psensor->w.next;
 }

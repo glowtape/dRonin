@@ -155,6 +155,8 @@ typedef struct pios_sensors_info* pios_sensor_t;
 /* Marks a sensor as an early registration. To deal with old sensors updating
    settings before the sensor is actually registered. */
 #define PIOS_SENSORS_FLAG_EARLY_REG						0x0100
+/* Secondary sensor. */
+#define PIOS_SENSORS_FLAG_SECONDARY						0x0200
 
 /* Sensor is doing (async) work with I2C. */
 #define PIOS_SENSORS_CUE_I2C							0x0001
@@ -186,5 +188,7 @@ uint8_t PIOS_Sensors_GetLRU();
 int PIOS_Sensors_GetData(pios_sensor_t sensor, void *output);
 
 pios_sensor_t PIOS_Sensors_GetSensor(enum pios_sensor_type sensor_type);
+
+pios_sensor_t PIOS_Sensors_GetSecondarySensor(pios_sensor_t psensor);
 
 #endif /* PIOS_SENSOR_H */
