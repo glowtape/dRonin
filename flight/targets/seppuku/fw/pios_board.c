@@ -134,7 +134,10 @@ void PIOS_Board_Init(void) {
 #endif	/* PIOS_INCLUDE_ANNUNC */
 
 #if defined(PIOS_INCLUDE_SPI)
-	if (PIOS_SPI_Init(&pios_spi_gyro_accel_id, &pios_spi_gyro_accel_cfg)) {
+	if (PIOS_SPI_Init(&pios_spi_gyro_accel_i_ii_id, &pios_spi_gyro_accel_i_ii_cfg)) {
+		PIOS_Assert(0);
+	}
+	if (PIOS_SPI_Init(&pios_spi_gyro_accel_iii_iv_id, &pios_spi_gyro_accel_iii_iv_cfg)) {
 		PIOS_Assert(0);
 	}
 #endif
@@ -410,7 +413,21 @@ void PIOS_Board_Init(void) {
 
 	bool do_foc = (bmi160_foc == HWSEPPUKU_BMI160FOC_DO_FOC);
 
-	if(PIOS_BMI160_Init(pios_spi_gyro_accel_id, 0, &pios_bmi160_cfg, do_foc) != 0){
+	if(PIOS_BMI160_Init(pios_spi_gyro_accel_i_ii_id, 0, &pios_bmi160_primary_cfg, do_foc, 0) != 0){
+		PIOS_HAL_CriticalError(PIOS_LED_ALARM, PIOS_HAL_PANIC_IMU);
+	}
+
+	if(PIOS_BMI160_Init(pios_spi_gyro_accel_i_ii_id, 1, &pios_bmi160_secondary_cfg, do_foc, 30) != 0){
+		PIOS_HAL_CriticalError(PIOS_LED_ALARM, PIOS_HAL_PANIC_IMU);
+	}
+
+	PIOS_WDG_Clear();
+
+	if(PIOS_BMI160_Init(pios_spi_gyro_accel_iii_iv_id, 0, &pios_bmi160_secondary_cfg, do_foc, 60) != 0){
+		PIOS_HAL_CriticalError(PIOS_LED_ALARM, PIOS_HAL_PANIC_IMU);
+	}
+
+	if(PIOS_BMI160_Init(pios_spi_gyro_accel_iii_iv_id, 1, &pios_bmi160_secondary_cfg, do_foc, 90) != 0){
 		PIOS_HAL_CriticalError(PIOS_LED_ALARM, PIOS_HAL_PANIC_IMU);
 	}
 

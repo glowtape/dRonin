@@ -76,7 +76,7 @@ pios_spi_t pios_spi_flash_id;
 /* SPI3 Interface
  *      - Used for gyro communications
  */
-static const struct pios_spi_cfg pios_spi_gyro_accel_cfg = {
+static const struct pios_spi_cfg pios_spi_gyro_accel_i_ii_cfg = {
 	.regs = SPI1,
 	.remap = GPIO_AF_SPI1,
 	.init = {
@@ -123,10 +123,10 @@ static const struct pios_spi_cfg pios_spi_gyro_accel_cfg = {
 		},
 		.pin_source = GPIO_PinSource5,
 	},
-	.slave_count = 1,
+	.slave_count = 2,
 	.ssel = {
 		{
-			// BMI160 / gyro & accel
+			// BMI160 I
 			.gpio = GPIOC,
 			.init = {
 				.GPIO_Pin = GPIO_Pin_12,
@@ -136,10 +136,104 @@ static const struct pios_spi_cfg pios_spi_gyro_accel_cfg = {
 				.GPIO_PuPd = GPIO_PuPd_UP
 			},
 		},
+		{
+			// BMI160 II
+			.gpio = GPIOC,
+			.init = {
+				.GPIO_Pin = GPIO_Pin_11,
+				.GPIO_Speed = GPIO_Speed_100MHz,
+				.GPIO_Mode  = GPIO_Mode_OUT,
+				.GPIO_OType = GPIO_OType_PP,
+				.GPIO_PuPd = GPIO_PuPd_UP
+			},
+		},
 	},
+	.dma_send_stream = DMA2_Stream3,
+	.dma_send_channel = DMA_Channel_3,
+	.dma_recv_stream = DMA2_Stream2,
+	.dma_recv_channel = DMA_Channel_3
 };
 
-pios_spi_t pios_spi_gyro_accel_id;
+static const struct pios_spi_cfg pios_spi_gyro_accel_iii_iv_cfg = {
+	.regs = SPI2,
+	.remap = GPIO_AF_SPI2,
+	.init = {
+		.SPI_Mode              = SPI_Mode_Master,
+		.SPI_Direction         = SPI_Direction_2Lines_FullDuplex,
+		.SPI_DataSize          = SPI_DataSize_8b,
+		.SPI_NSS               = SPI_NSS_Soft,
+		.SPI_FirstBit          = SPI_FirstBit_MSB,
+		.SPI_CRCPolynomial     = 7,
+		.SPI_CPOL              = SPI_CPOL_High,
+		.SPI_CPHA              = SPI_CPHA_2Edge,
+		.SPI_BaudRatePrescaler = SPI_BaudRatePrescaler_32,		//@ APB2 PCLK1 82MHz / 32 == 2.6MHz
+	},
+	.sclk = {
+		.gpio = GPIOB,
+		.init = {
+			.GPIO_Pin = GPIO_Pin_13,
+			.GPIO_Speed = GPIO_Speed_100MHz,
+			.GPIO_Mode = GPIO_Mode_AF,
+			.GPIO_OType = GPIO_OType_PP,
+			.GPIO_PuPd = GPIO_PuPd_NOPULL
+		},
+		.pin_source = GPIO_PinSource13,
+	},
+	.miso = {
+		.gpio = GPIOB,
+		.init = {
+			.GPIO_Pin = GPIO_Pin_14,
+			.GPIO_Speed = GPIO_Speed_100MHz,
+			.GPIO_Mode = GPIO_Mode_AF,
+			.GPIO_OType = GPIO_OType_PP,
+			.GPIO_PuPd = GPIO_PuPd_NOPULL
+		},
+		.pin_source = GPIO_PinSource14,
+	},
+	.mosi = {
+		.gpio = GPIOB,
+		.init = {
+			.GPIO_Pin = GPIO_Pin_15,
+			.GPIO_Speed = GPIO_Speed_100MHz,
+			.GPIO_Mode = GPIO_Mode_AF,
+			.GPIO_OType = GPIO_OType_PP,
+			.GPIO_PuPd = GPIO_PuPd_NOPULL
+		},
+		.pin_source = GPIO_PinSource15,
+	},
+	.slave_count = 2,
+	.ssel = {
+		{
+			// BMI160 I
+			.gpio = GPIOA,
+			.init = {
+				.GPIO_Pin = GPIO_Pin_5,
+				.GPIO_Speed = GPIO_Speed_100MHz,
+				.GPIO_Mode  = GPIO_Mode_OUT,
+				.GPIO_OType = GPIO_OType_PP,
+				.GPIO_PuPd = GPIO_PuPd_UP
+			},
+		},
+		{
+			// BMI160 II
+			.gpio = GPIOA,
+			.init = {
+				.GPIO_Pin = GPIO_Pin_4,
+				.GPIO_Speed = GPIO_Speed_100MHz,
+				.GPIO_Mode  = GPIO_Mode_OUT,
+				.GPIO_OType = GPIO_OType_PP,
+				.GPIO_PuPd = GPIO_PuPd_UP
+			},
+		},
+	},
+	.dma_send_stream = DMA1_Stream4,
+	.dma_send_channel = DMA_Channel_0,
+	.dma_recv_stream = DMA1_Stream3,
+	.dma_recv_channel = DMA_Channel_0
+};
+
+pios_spi_t pios_spi_gyro_accel_i_ii_id;
+pios_spi_t pios_spi_gyro_accel_iii_iv_id;
 
 /**
  * Sensor configurations
@@ -147,7 +241,7 @@ pios_spi_t pios_spi_gyro_accel_id;
 #if defined(PIOS_INCLUDE_BMI160)
 #include "pios_bmi160.h"
 
-static const struct pios_exti_cfg pios_exti_bmi160_cfg __exti_config = {
+static const struct pios_exti_cfg pios_exti_bmi160_i_cfg __exti_config = {
 	.vector = PIOS_BMI160_IRQHandler,
 	.line = EXTI_Line0,
 	.pin = {
@@ -177,15 +271,118 @@ static const struct pios_exti_cfg pios_exti_bmi160_cfg __exti_config = {
 		},
 	},
 };
+/*
+static const struct pios_exti_cfg pios_exti_bmi160_ii_cfg __exti_config = {
+	.vector = PIOS_BMI160_IRQHandler,
+	.line = EXTI_Line1,
+	.pin = {
+		.gpio = GPIOC,
+		.init = {
+			.GPIO_Pin = GPIO_Pin_1,
+			.GPIO_Speed = GPIO_Speed_2MHz,
+			.GPIO_Mode = GPIO_Mode_IN,
+			.GPIO_OType = GPIO_OType_OD,
+			.GPIO_PuPd = GPIO_PuPd_DOWN,	// hold in inactive state
+		},
+	},
+	.irq = {
+		.init = {
+			.NVIC_IRQChannel = EXTI1_IRQn,
+			.NVIC_IRQChannelPreemptionPriority = PIOS_IRQ_PRIO_HIGH,
+			.NVIC_IRQChannelSubPriority = 0,
+			.NVIC_IRQChannelCmd = ENABLE,
+		},
+	},
+	.exti = {
+		.init = {
+			.EXTI_Line = EXTI_Line1, // matches above GPIO pin
+			.EXTI_Mode = EXTI_Mode_Interrupt,
+			.EXTI_Trigger = EXTI_Trigger_Rising,
+			.EXTI_LineCmd = ENABLE,
+		},
+	},
+};
 
-static const struct pios_bmi160_cfg pios_bmi160_cfg = {
-	.exti_cfg = &pios_exti_bmi160_cfg,
-	.orientation = PIOS_BMI160_TOP_90DEG,
+static const struct pios_exti_cfg pios_exti_bmi160_iii_cfg __exti_config = {
+	.vector = PIOS_BMI160_IRQHandler,
+	.line = EXTI_Line1,
+	.pin = {
+		.gpio = GPIOB,
+		.init = {
+			.GPIO_Pin = GPIO_Pin_1,
+			.GPIO_Speed = GPIO_Speed_2MHz,
+			.GPIO_Mode = GPIO_Mode_IN,
+			.GPIO_OType = GPIO_OType_OD,
+			.GPIO_PuPd = GPIO_PuPd_DOWN,	// hold in inactive state
+		},
+	},
+	.irq = {
+		.init = {
+			.NVIC_IRQChannel = EXTI1_IRQn,
+			.NVIC_IRQChannelPreemptionPriority = PIOS_IRQ_PRIO_HIGH,
+			.NVIC_IRQChannelSubPriority = 0,
+			.NVIC_IRQChannelCmd = ENABLE,
+		},
+	},
+	.exti = {
+		.init = {
+			.EXTI_Line = EXTI_Line1, // matches above GPIO pin
+			.EXTI_Mode = EXTI_Mode_Interrupt,
+			.EXTI_Trigger = EXTI_Trigger_Rising,
+			.EXTI_LineCmd = ENABLE,
+		},
+	},
+};
+
+static const struct pios_exti_cfg pios_exti_bmi160_iv_cfg __exti_config = {
+	.vector = PIOS_BMI160_IRQHandler,
+	.line = EXTI_Line0,
+	.pin = {
+		.gpio = GPIOB,
+		.init = {
+			.GPIO_Pin = GPIO_Pin_0,
+			.GPIO_Speed = GPIO_Speed_2MHz,
+			.GPIO_Mode = GPIO_Mode_IN,
+			.GPIO_OType = GPIO_OType_OD,
+			.GPIO_PuPd = GPIO_PuPd_DOWN,	// hold in inactive state
+		},
+	},
+	.irq = {
+		.init = {
+			.NVIC_IRQChannel = EXTI0_IRQn,
+			.NVIC_IRQChannelPreemptionPriority = PIOS_IRQ_PRIO_HIGH,
+			.NVIC_IRQChannelSubPriority = 0,
+			.NVIC_IRQChannelCmd = ENABLE,
+		},
+	},
+	.exti = {
+		.init = {
+			.EXTI_Line = EXTI_Line0, // matches above GPIO pin
+			.EXTI_Mode = EXTI_Mode_Interrupt,
+			.EXTI_Trigger = EXTI_Trigger_Rising,
+			.EXTI_LineCmd = ENABLE,
+		},
+	},
+};*/
+
+static const struct pios_bmi160_cfg pios_bmi160_primary_cfg = {
+	.exti_cfg = &pios_exti_bmi160_i_cfg,
+	.orientation = PIOS_BMI160_TOP_180DEG,
 	.odr = PIOS_BMI160_ODR_1600_Hz,
 	.acc_range = PIOS_BMI160_RANGE_8G,
 	.gyro_range = PIOS_BMI160_RANGE_2000DPS,
 	.temperature_interleaving = 50
 };
+
+static const struct pios_bmi160_cfg pios_bmi160_secondary_cfg = {
+//	.exti_cfg = &pios_exti_bmi160_ii_cfg,
+	.orientation = PIOS_BMI160_TOP_180DEG,
+	.odr = PIOS_BMI160_ODR_1600_Hz,
+	.acc_range = PIOS_BMI160_RANGE_8G,
+	.gyro_range = PIOS_BMI160_RANGE_2000DPS,
+	.temperature_interleaving = 50
+};
+
 #endif /* PIOS_INCLUDE_BMI160 */
 
 #ifdef PIOS_INCLUDE_LIS3MDL
@@ -1032,7 +1229,7 @@ static const struct pios_usb_cfg pios_usb_main_cfg = {
 	.vsense = {
 		.gpio = GPIOB,
 		.init = {
-			.GPIO_Pin   = GPIO_Pin_8,
+			.GPIO_Pin   = GPIO_Pin_10,
 			.GPIO_Speed = GPIO_Speed_25MHz,
 			.GPIO_Mode  = GPIO_Mode_IN,
 			.GPIO_OType = GPIO_OType_OD,
