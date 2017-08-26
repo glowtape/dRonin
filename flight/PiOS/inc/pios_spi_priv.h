@@ -35,9 +35,18 @@
 #include <pios_stm32.h>
 #include "pios_semaphore.h"
 
+#ifdef PIOS_INCLUDE_SPIDMA
+#ifdef STM32F4XX
+#include "stm32f4xx_dma.h"
+#else
+#error "Platform not supported."
+#endif
+#endif
+
 struct pios_spi_dev {
 	const struct pios_spi_cfg *cfg;
 	struct pios_semaphore *busy;
+	bool dma_initialized;
 };
 
 struct pios_spi_cfg {
@@ -52,6 +61,12 @@ struct pios_spi_cfg {
 	// XXX Hack: pios_video uses pios_spi's config structure and expects the
 	// DMA information to be filled in properly
 	struct stm32_dma dma;
+#endif
+#ifdef PIOS_INCLUDE_SPIDMA
+	DMA_Stream_TypeDef *dma_send_stream;
+	uint32_t dma_send_channel;
+	DMA_Stream_TypeDef *dma_recv_stream;
+	uint32_t dma_recv_channel;
 #endif
 	struct stm32_gpio ssel[];
 };

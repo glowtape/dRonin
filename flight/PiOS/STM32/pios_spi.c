@@ -64,8 +64,120 @@ static bool PIOS_SPI_validate(struct pios_spi_dev *com_dev)
 
 static struct pios_spi_dev *PIOS_SPI_alloc(void)
 {
-	return (PIOS_malloc(sizeof(struct pios_spi_dev)));
+	struct pios_spi_dev *dev = PIOS_malloc_no_dma(sizeof(struct pios_spi_dev));
+
+	if (dev) memset(dev, 0, sizeof(*dev));
+	return dev;
 }
+
+#if defined(PIOS_INCLUDE_SPIDMA) & defined(STM32F4XX)
+
+inline uint32_t PIOS_SPI_DMAClearFlag(DMA_Stream_TypeDef *s)
+{
+	switch ((uint32_t)s) {
+		default:
+		case (uint32_t)DMA1_Stream0:
+		case (uint32_t)DMA2_Stream0:
+			return DMA_FLAG_TCIF0 | DMA_FLAG_HTIF0 | DMA_FLAG_TEIF0 | DMA_FLAG_DMEIF0 | DMA_FLAG_FEIF0;
+		case (uint32_t)DMA1_Stream1:
+		case (uint32_t)DMA2_Stream1:
+			return DMA_FLAG_TCIF1 | DMA_FLAG_HTIF1 | DMA_FLAG_TEIF1 | DMA_FLAG_DMEIF1 | DMA_FLAG_FEIF1;
+		case (uint32_t)DMA1_Stream2:
+		case (uint32_t)DMA2_Stream2:
+			return DMA_FLAG_TCIF2 | DMA_FLAG_HTIF2 | DMA_FLAG_TEIF2 | DMA_FLAG_DMEIF2 | DMA_FLAG_FEIF2;
+		case (uint32_t)DMA1_Stream3:
+		case (uint32_t)DMA2_Stream3:
+			return DMA_FLAG_TCIF3 | DMA_FLAG_HTIF3 | DMA_FLAG_TEIF3 | DMA_FLAG_DMEIF3 | DMA_FLAG_FEIF3;
+		case (uint32_t)DMA1_Stream4:
+		case (uint32_t)DMA2_Stream4:
+			return DMA_FLAG_TCIF4 | DMA_FLAG_HTIF4 | DMA_FLAG_TEIF4 | DMA_FLAG_DMEIF4 | DMA_FLAG_FEIF4;
+		case (uint32_t)DMA1_Stream5:
+		case (uint32_t)DMA2_Stream5:
+			return DMA_FLAG_TCIF5 | DMA_FLAG_HTIF5 | DMA_FLAG_TEIF5 | DMA_FLAG_DMEIF5 | DMA_FLAG_FEIF5;
+		case (uint32_t)DMA1_Stream6:
+		case (uint32_t)DMA2_Stream6:
+			return DMA_FLAG_TCIF6 | DMA_FLAG_HTIF6 | DMA_FLAG_TEIF6 | DMA_FLAG_DMEIF6 | DMA_FLAG_FEIF6;
+		case (uint32_t)DMA1_Stream7:
+		case (uint32_t)DMA2_Stream7:
+			return DMA_FLAG_TCIF7 | DMA_FLAG_HTIF7 | DMA_FLAG_TEIF7 | DMA_FLAG_DMEIF7 | DMA_FLAG_FEIF7;
+	}
+}
+
+inline uint32_t PIOS_SPI_DMATCFlag(DMA_Stream_TypeDef *s)
+{
+	switch ((uint32_t)s) {
+		default:
+		case (uint32_t)DMA1_Stream0:
+		case (uint32_t)DMA2_Stream0:
+			return DMA_FLAG_TCIF0;
+		case (uint32_t)DMA1_Stream1:
+		case (uint32_t)DMA2_Stream1:
+			return DMA_FLAG_TCIF1;
+		case (uint32_t)DMA1_Stream2:
+		case (uint32_t)DMA2_Stream2:
+			return DMA_FLAG_TCIF2;
+		case (uint32_t)DMA1_Stream3:
+		case (uint32_t)DMA2_Stream3:
+			return DMA_FLAG_TCIF3;
+		case (uint32_t)DMA1_Stream4:
+		case (uint32_t)DMA2_Stream4:
+			return DMA_FLAG_TCIF4;
+		case (uint32_t)DMA1_Stream5:
+		case (uint32_t)DMA2_Stream5:
+			return DMA_FLAG_TCIF5;
+		case (uint32_t)DMA1_Stream6:
+		case (uint32_t)DMA2_Stream6:
+			return DMA_FLAG_TCIF6;
+		case (uint32_t)DMA1_Stream7:
+		case (uint32_t)DMA2_Stream7:
+			return DMA_FLAG_TCIF7;
+	}
+}
+
+static bool PIOS_SPI_InitDMAStream(DMA_Stream_TypeDef *s, uint32_t channel, uint32_t periph_addr, bool send)
+{
+	DMA_Cmd(s, DISABLE);
+	while (s->CR & DMA_SxCR_EN);
+
+	DMA_DeInit(s);
+
+	DMA_InitTypeDef init;
+	DMA_StructInit(&init);
+
+	init.DMA_Channel = channel;
+
+	init.DMA_Memory0BaseAddr = 0;
+	init.DMA_PeripheralBaseAddr = periph_addr;
+	init.DMA_MemoryDataSize = DMA_MemoryDataSize_Byte;
+	init.DMA_PeripheralDataSize = DMA_PeripheralDataSize_Byte;
+	init.DMA_MemoryInc = DMA_MemoryInc_Enable;
+	init.DMA_PeripheralInc = DMA_PeripheralInc_Disable;
+
+	init.DMA_DIR = send ? DMA_DIR_MemoryToPeripheral : DMA_DIR_PeripheralToMemory;
+	init.DMA_Mode = DMA_Mode_Normal;
+
+	init.DMA_Priority = DMA_Priority_VeryHigh;
+	init.DMA_MemoryBurst = DMA_MemoryBurst_Single;
+	init.DMA_PeripheralBurst = DMA_PeripheralBurst_Single;
+	init.DMA_FIFOMode = DMA_FIFOMode_Disable;
+	init.DMA_FIFOThreshold = DMA_FIFOThreshold_1QuarterFull;
+
+	DMA_Init(s, &init);
+	DMA_ITConfig(s, DMA_IT_TC, DISABLE);
+
+	return true;
+}
+
+static bool PIOS_SPI_InitializeDMA(const struct pios_spi_cfg *cfg)
+{
+	if (!cfg) return false;
+	if (cfg->dma_send_stream == NULL || cfg->dma_recv_stream == NULL) return false;
+
+	return PIOS_SPI_InitDMAStream(cfg->dma_send_stream, cfg->dma_send_channel, (uint32_t)&cfg->regs->DR, true) &&
+		PIOS_SPI_InitDMAStream(cfg->dma_recv_stream, cfg->dma_recv_channel, (uint32_t)&cfg->regs->DR, false);
+}
+
+#endif // PIOS_INCLUDE_SPIDMA & STM32F4XX
 
 /**
 * Initialises SPI pins
@@ -152,6 +264,10 @@ int32_t PIOS_SPI_Init(pios_spi_t *spi_id, const struct pios_spi_cfg *cfg)
 #if defined(STM32F30X)
 	/* Configure the RX FIFO Threshold -- 8 bits */
 	SPI_RxFIFOThresholdConfig(spi_dev->cfg->regs, SPI_RxFIFOThreshold_QF);
+#endif
+
+#if defined(PIOS_INCLUDE_SPIDMA) & defined(STM32F4XX)
+	spi_dev->dma_initialized = PIOS_SPI_InitializeDMA(spi_dev->cfg);
 #endif
 
 	/* Enable SPI */
@@ -316,6 +432,59 @@ static int32_t SPI_PIO_TransferBlock(pios_spi_t spi_dev,
 
 	bool valid = PIOS_SPI_validate(spi_dev);
 	PIOS_Assert(valid)
+
+#if defined(PIOS_INCLUDE_SPIDMA) & defined(STM32F4XX)
+	if (spi_dev->dma_initialized & (len > 1)) {
+		const struct pios_spi_cfg *cfg = spi_dev->cfg;
+		uint8_t dummy_rx = 0, dummy_tx = 0xff;
+
+		if (send_buffer) {
+			cfg->dma_send_stream->CR |= DMA_MemoryInc_Enable;
+			DMA_MemoryTargetConfig(cfg->dma_send_stream, (uint32_t)send_buffer, DMA_Memory_0);
+		} else {
+			cfg->dma_send_stream->CR &= ~DMA_MemoryInc_Enable;
+			DMA_MemoryTargetConfig(cfg->dma_send_stream, (uint32_t)&dummy_tx, DMA_Memory_0);
+		}
+
+		if (receive_buffer) {
+			cfg->dma_recv_stream->CR |= DMA_MemoryInc_Enable;
+			DMA_MemoryTargetConfig(cfg->dma_recv_stream, (uint32_t)receive_buffer, DMA_Memory_0);
+		} else {
+			cfg->dma_recv_stream->CR &= ~DMA_MemoryInc_Enable;
+			DMA_MemoryTargetConfig(cfg->dma_recv_stream, (uint32_t)&dummy_rx, DMA_Memory_0);
+		}
+
+		DMA_SetCurrDataCounter(cfg->dma_send_stream, len);
+		DMA_SetCurrDataCounter(cfg->dma_recv_stream, len);
+
+		DMA_ClearFlag(cfg->dma_send_stream, PIOS_SPI_DMATCFlag(cfg->dma_send_stream));
+		DMA_ClearFlag(cfg->dma_recv_stream, PIOS_SPI_DMATCFlag(cfg->dma_recv_stream));
+
+		DMA_Cmd(cfg->dma_send_stream, ENABLE);
+		DMA_Cmd(cfg->dma_recv_stream, ENABLE);
+
+		SPI_I2S_DMACmd(cfg->regs, SPI_I2S_DMAReq_Tx, ENABLE);
+		SPI_I2S_DMACmd(cfg->regs, SPI_I2S_DMAReq_Rx, ENABLE);
+
+		SPI_Cmd(cfg->regs, ENABLE);
+
+		while (DMA_GetFlagStatus(cfg->dma_recv_stream, PIOS_SPI_DMATCFlag(cfg->dma_recv_stream)) == RESET);
+		//while (DMA_GetFlagStatus(cfg->dma_send_stream, PIOS_SPI_DMATCFlag(cfg->dma_send_stream)) == RESET);
+
+		SPI_Cmd(cfg->regs, DISABLE);
+		
+		SPI_I2S_DMACmd(cfg->regs, SPI_I2S_DMAReq_Tx, DISABLE);
+		SPI_I2S_DMACmd(cfg->regs, SPI_I2S_DMAReq_Rx, DISABLE);
+
+		DMA_Cmd(cfg->dma_send_stream, DISABLE);
+		DMA_Cmd(cfg->dma_recv_stream, DISABLE);
+
+		while (cfg->dma_send_stream->CR & DMA_SxCR_EN);
+		while (cfg->dma_recv_stream->CR & DMA_SxCR_EN);
+
+		return 0;
+	}
+#endif
 
 	while (len--) {
 		/* get the byte to send */
