@@ -73,10 +73,11 @@ struct pios_bmi160_cfg {
 	enum pios_bmi160_acc_range acc_range;
 	enum pios_bmi160_gyro_range gyro_range;
 	uint8_t temperature_interleaving;
+	void *dev;
 };
 
 /* Public Functions */
-extern int32_t PIOS_BMI160_Init(pios_spi_t spi_id, uint32_t slave_num, const struct pios_bmi160_cfg *cfg, bool do_foc);
+extern int32_t PIOS_BMI160_Init(pios_spi_t spi_id, uint32_t slave_num, const struct pios_bmi160_cfg *cfg, bool do_foc, float angle);
 extern bool PIOS_BMI160_IRQHandler(void);
 
 #endif /* PIOS_BMI160_H */
