@@ -65,7 +65,7 @@ OPTMODULES += Logging
 OPTMODULES += FlightStats
 OPTMODULES += Storm32Bgc
 OPTMODULES += VTXConfig
-OPTMODULES += OnScreenDisplay
+# OPTMODULES += OnScreenDisplay
 OPTMODULES += UAVOCrossfireTelemetry
 
 # Paths

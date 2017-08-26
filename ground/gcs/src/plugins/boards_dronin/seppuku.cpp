@@ -51,12 +51,10 @@ Seppuku::Seppuku(void)
     addFirmwareUSBInfo(
         USBInfo(DRONIN_VID_DRONIN_FIRMWARE, DRONIN_PID_DRONIN_FIRMWARE, BCD_DEVICE_FIRMWARE));
 
-    channelBanks.resize(4);
+    channelBanks.resize(2);
     channelBanks.clear();
-    channelBanks << (QVector<int>() << 1 << 2); // TIM8
-    channelBanks << (QVector<int>() << 3); // TIM14
-    channelBanks << (QVector<int>() << 4 << 5 << 6); // TIM3
-    channelBanks << (QVector<int>() << 7 << 8); // TIM5
+    channelBanks << (QVector<int>() << 1 << 2 << 3 << 4); // TIM4
+    channelBanks << (QVector<int>() << 5 << 6); // TIM5
 }
 
 Seppuku::~Seppuku()
@@ -78,9 +76,6 @@ bool Seppuku::queryCapabilities(BoardCapabilities capability)
     switch (capability) {
     case BOARD_CAPABILITIES_GYROS:
     case BOARD_CAPABILITIES_ACCELS:
-    case BOARD_CAPABILITIES_MAGS:
-    case BOARD_CAPABILITIES_BAROS:
-    case BOARD_CAPABILITIES_OSD:
     case BOARD_CAPABILITIES_UPGRADEABLE:
         return true;
     default:

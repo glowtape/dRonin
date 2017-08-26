@@ -522,20 +522,6 @@ void PIOS_Board_Init(void) {
 	PIOS_ADC_Init(&pios_internal_adc_id, &pios_internal_adc_driver, internal_adc_id);
 #endif
 
-#if defined(PIOS_INCLUDE_VIDEO)
-	// make sure the mask pin is low
-	GPIO_Init(pios_video_cfg.mask.miso.gpio, (GPIO_InitTypeDef*)&pios_video_cfg.mask.miso.init);
-	GPIO_ResetBits(pios_video_cfg.mask.miso.gpio, pios_video_cfg.mask.miso.init.GPIO_Pin);
-
-	// Initialize settings
-	OnScreenDisplaySettingsInitialize();
-
-	uint8_t osd_state;
-	OnScreenDisplaySettingsOSDEnabledGet(&osd_state);
-	if (osd_state == ONSCREENDISPLAYSETTINGS_OSDENABLED_ENABLED) {
-		OSD_configure_bw_levels();
-	}
-#endif
 
 	/* Make sure we have at least one telemetry link configured or else fail initialization */
 	PIOS_Assert(pios_com_telem_serial_id || pios_com_telem_usb_id);
