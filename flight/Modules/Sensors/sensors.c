@@ -58,6 +58,7 @@ extern pios_i2c_t external_i2c_adapter_id;
 #include "magnetometer.h"
 #include "magbias.h"
 #include "coordinate_conversions.h"
+#include "ratedesired.h"
 
 // Private constants
 #define STACK_SIZE_BYTES 1000
@@ -152,6 +153,8 @@ int32_t SensorsInitialize(void)
 
 		return -1;
 	}
+
+	RateDesiredInitialize();
 
 #if defined (PIOS_INCLUDE_OPTICALFLOW)
 	if (OpticalFlowSettingsInitialize() == -1){
@@ -275,6 +278,48 @@ static void SensorsTask(void *parameters)
 		} else {
 			update_accels(&accels);
 		}
+
+		int gc = 1;
+		pios_sensor_t s_gyro = PIOS_Sensors_GetSecondarySensor(p_gyro);
+		while (s_gyro) {
+			struct pios_sensor_gyro_data s_data;
+			if (PIOS_Sensors_GetData(s_gyro, &s_data) == PIOS_SENSORS_DATA_AVAILABLE) {
+				gc++;
+				gyros.x += s_data.x;
+				gyros.y += s_data.y;
+				gyros.z += s_data.z;
+			}
+			s_gyro = PIOS_Sensors_GetSecondarySensor(s_gyro);
+		}
+		if (gc > 1) {
+			gyros.x /= (float)gc;
+			gyros.y /= (float)gc;
+			gyros.z /= (float)gc;
+		}
+
+		int ac = 1;
+		pios_sensor_t s_accel = PIOS_Sensors_GetSecondarySensor(p_accel);
+		while (s_accel) {
+			struct pios_sensor_accel_data s_data;
+			if (PIOS_Sensors_GetData(s_accel, &s_data) == PIOS_SENSORS_DATA_AVAILABLE) {
+				ac++;
+				accels.x += s_data.x;
+				accels.y += s_data.y;
+				accels.z += s_data.z;
+			}
+			s_accel = PIOS_Sensors_GetSecondarySensor(s_accel);
+		}
+		if (ac > 1) {
+			accels.x /= (float)ac;
+			accels.y /= (float)ac;
+			accels.z /= (float)ac;
+		}
+
+		RateDesiredData r;
+		RateDesiredGet(&r);
+		r.Roll = gc;
+		r.Pitch = ac;
+		RateDesiredSet(&r);
 
 		// Update gyros after the accels since the rest of the code expects
 		// the accels to be available first
