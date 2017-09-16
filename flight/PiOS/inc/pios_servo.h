@@ -71,6 +71,8 @@ extern void PIOS_Servo_PrepareForReset();
 extern void PIOS_Servo_Set(uint8_t servo, float position);
 extern void PIOS_Servo_Update(void);
 
+extern int PIOS_Servo_RequestTelemetry(uint8_t servo);
+
 #endif /* PIOS_SERVO_H */
 
 /**
