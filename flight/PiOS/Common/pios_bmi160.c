@@ -301,11 +301,13 @@ static int32_t PIOS_BMI160_Config(struct bmi160_dev *dev, const struct pios_bmi1
 		return -7;
 	}
 
-	// Enable data ready interrupt
-	if (PIOS_BMI160_WriteReg(dev, BMI160_REG_INT_EN1, BMI160_INT_EN1_DRDY) != 0){
-		return -8;
+	if (cfg->exti_cfg) {
+		/* Enable data ready interrupt, if there's an EXTI configuration. */
+		if (PIOS_BMI160_WriteReg(dev, BMI160_REG_INT_EN1, BMI160_INT_EN1_DRDY) != 0){
+			return -8;
+		}
+		PIOS_DELAY_WaitmS(1);
 	}
-	PIOS_DELAY_WaitmS(1);
 
 	// Enable INT1 pin
 	if (PIOS_BMI160_WriteReg(dev, BMI160_REG_INT_OUT_CTRL, BMI160_INT_OUT_CTRL_INT1_CONFIG) != 0){
