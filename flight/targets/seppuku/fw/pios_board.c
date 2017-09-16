@@ -416,13 +416,13 @@ void PIOS_Board_Init(void) {
 	if(PIOS_BMI160_Init(pios_spi_gyro_accel_i_ii_id, 0, &pios_bmi160_primary_cfg, do_foc, 0) != 0){
 		PIOS_HAL_CriticalError(PIOS_LED_ALARM, PIOS_HAL_PANIC_IMU);
 	}
-
+/*
 	if(PIOS_BMI160_Init(pios_spi_gyro_accel_i_ii_id, 1, &pios_bmi160_secondary_cfg, do_foc, 30) != 0){
 		PIOS_HAL_CriticalError(PIOS_LED_ALARM, PIOS_HAL_PANIC_IMU);
 	}
-
+*/
 	PIOS_WDG_Clear();
-
+/*
 	if(PIOS_BMI160_Init(pios_spi_gyro_accel_iii_iv_id, 0, &pios_bmi160_secondary_cfg, do_foc, 60) != 0){
 		PIOS_HAL_CriticalError(PIOS_LED_ALARM, PIOS_HAL_PANIC_IMU);
 	}
@@ -431,6 +431,8 @@ void PIOS_Board_Init(void) {
 		PIOS_HAL_CriticalError(PIOS_LED_ALARM, PIOS_HAL_PANIC_IMU);
 	}
 
+	PIOS_WDG_Clear();
+*/
 	/* Disable FOC. We only do this once. */
 	if (do_foc) {
 		bmi160_foc = HWSEPPUKU_BMI160FOC_DISABLED;
