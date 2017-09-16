@@ -1041,23 +1041,6 @@ static int PIOS_MPU_parse_data(void *p)
 	struct pios_sensor_mag_data *mag_data = &mpu_dev->mag_data;
 #endif // PIOS_INCLUDE_MPU_MAG
 
-<<<<<<< HEAD
-		/*
-		 * Rotate the sensor to our convention (x forward, y right, z down).
-		 * Sensor orientation for all supported Invensense variants is
-		 * x right, y forward, z up.
-		 * The embedded AK8xxx magnetometer in MPU9x50 variants matches our convention.
-		 * See flight/Doc/imu_orientation.md for further detail
-		 */
-		switch (mpu_dev->cfg->orientation) {
-		case PIOS_MPU_TOP_0DEG:
-			accel_data.x =  accel_y;
-			accel_data.y =  accel_x;
-			accel_data.z = -accel_z;
-			gyro_data.x  =  gyro_y;
-			gyro_data.y  =  gyro_x;
-			gyro_data.z  = -gyro_z;
-=======
 	struct pios_sensor_gyro_data *gyro_data = &mpu_dev->gyro_data;
 	struct pios_sensor_accel_data *accel_data = &mpu_dev->accel_data;
 
@@ -1076,7 +1059,6 @@ static int PIOS_MPU_parse_data(void *p)
 		gyro_data->x  =  gyro_y;
 		gyro_data->y  =  gyro_x;
 		gyro_data->z  = -gyro_z;
->>>>>>> baba0ef81... pios_mpu: Converted to new sensor framework.
 #ifdef PIOS_INCLUDE_MPU_MAG
 		mag_data->x   =  mag_x;
 		mag_data->y   =  mag_y;
