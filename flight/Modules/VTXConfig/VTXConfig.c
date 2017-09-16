@@ -1,6 +1,6 @@
 /**
  ******************************************************************************
- * @addtogroup TauLabsModules Tau Labs Modules
+ * @addtogroup Modules Modules
  * @{ 
  * @addtogroup VTXConfig Module
  * @{ 
@@ -33,6 +33,7 @@
 
 #include "openpilot.h"
 #include <pios_hal.h>
+#include <pios_thread.h>
 
 #include "tbs_smartaudio.h"
 

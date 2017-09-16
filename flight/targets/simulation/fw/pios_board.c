@@ -34,6 +34,7 @@
 #include <pios_tcp_priv.h>
 #include <openpilot.h>
 #include <uavobjectsinit.h>
+#include <pios_thread.h>
 
 #include "accels.h"
 #include "baroaltitude.h"

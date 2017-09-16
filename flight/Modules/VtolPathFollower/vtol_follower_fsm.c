@@ -1,6 +1,6 @@
 /**
  ******************************************************************************
- * @addtogroup TauLabsModules Tau Labs Modules
+ * @addtogroup Modules Modules
  * @{
  * @addtogroup VtolPathFollower VTOL path follower module
  * @{
@@ -45,6 +45,8 @@
  */
 
 #include "openpilot.h"
+
+#include <pios_thread.h>
 
 #include "coordinate_conversions.h"
 #include "physical_constants.h"

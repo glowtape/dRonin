@@ -175,19 +175,19 @@ qt_sdk_clean:
 	$(V1) [ ! -d "$(QT_SDK_DIR)" ] || $(RM) -rf $(QT_SDK_DIR)
 
 # Set up ARM (STM32) SDK
-ARM_SDK_DIR := $(TOOLS_DIR)/gcc-arm-none-eabi-5_2-2015q4
+ARM_SDK_DIR := $(TOOLS_DIR)/gcc-arm-none-eabi-6-2017-q2-update
 
 .PHONY: arm_sdk_install
 ifdef LINUX
-  arm_sdk_install: ARM_SDK_URL  := https://launchpad.net/gcc-arm-embedded/5.0/5-2015-q4-major/+download/gcc-arm-none-eabi-5_2-2015q4-20151219-linux.tar.bz2
+  arm_sdk_install: ARM_SDK_URL  := https://armkeil.blob.core.windows.net/developer/Files/downloads/gnu-rm/6-2017q2/gcc-arm-none-eabi-6-2017-q2-update-linux.tar.bz2
 endif
 
 ifdef MACOSX
-  arm_sdk_install: ARM_SDK_URL  := https://launchpad.net/gcc-arm-embedded/5.0/5-2015-q4-major/+download/gcc-arm-none-eabi-5_2-2015q4-20151219-mac.tar.bz2
+  arm_sdk_install: ARM_SDK_URL  := https://armkeil.blob.core.windows.net/developer/Files/downloads/gnu-rm/6-2017q2/gcc-arm-none-eabi-6-2017-q2-update-mac.tar.bz2
 endif
 
 ifdef WINDOWS
-  arm_sdk_install: ARM_SDK_URL  := https://launchpad.net/gcc-arm-embedded/5.0/5-2015-q4-major/+download/gcc-arm-none-eabi-5_2-2015q4-20151219-win32.zip
+  arm_sdk_install: ARM_SDK_URL  := https://armkeil.blob.core.windows.net/developer/Files/downloads/gnu-rm/6-2017q2/gcc-arm-none-eabi-6-2017-q2-update-win32.zip
 endif
 
 arm_sdk_install: ARM_SDK_FILE := $(notdir $(ARM_SDK_URL))
@@ -540,7 +540,7 @@ libkml_clean:
 	$(V1) [ ! -d "$(LIBKML_BUILD_DIR)" ] || $(RM) -rf "$(LIBKML_BUILD_DIR)"
 
 # ZIP download URL
-zip_install: ZIP_URL  := http://pkgs.fedoraproject.org/repo/pkgs/zip/zip30.tar.gz/7b74551e63f8ee6aab6fbc86676c0d37/zip30.tar.gz 
+zip_install: ZIP_URL  := http://pkgs.fedoraproject.org/repo/pkgs/zip/zip30.tar.gz/7b74551e63f8ee6aab6fbc86676c0d37/zip30.tar.gz
 
 zip_install: ZIP_FILE := $(notdir $(ZIP_URL))
 
@@ -697,9 +697,14 @@ endif
 
 # OPENSSL download URL
 ifdef WINDOWS
-  openssl_install: OPENSSL_URL  := https://slproweb.com/download/Win32OpenSSL-1_0_2k.exe
+  openssl_install: OPENSSL_URL  = https://slproweb.com$(shell \
+          curl -s https://slproweb.com/products/Win32OpenSSL.html \
+          | grep -P 'Win32OpenSSL-1_0_[0-9]*[A-Za-z].exe' \
+          | head -1 \
+          | sed 's|.*\(/download/Win32OpenSSL.*\.exe\).*|\1|g'\
+  )
 
-openssl_install: OPENSSL_FILE := $(notdir $(OPENSSL_URL))
+openssl_install: OPENSSL_FILE = $(notdir $(OPENSSL_URL))
 OPENSSL_DIR = $(TOOLS_DIR)/win32openssl
 # order-only prereq on directory existance:
 openssl_install : | $(DL_DIR) $(TOOLS_DIR)
