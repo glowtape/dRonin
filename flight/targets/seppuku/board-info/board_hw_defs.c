@@ -148,11 +148,22 @@ static const struct pios_spi_cfg pios_spi_gyro_accel_i_ii_cfg = {
 			},
 		},
 	},
-	.dma_send_stream = DMA2_Stream3,
-	.dma_send_channel = DMA_Channel_3,
-	.dma_recv_stream = DMA2_Stream2,
-	.dma_recv_channel = DMA_Channel_3
+	.spi_dma = {
+		.send = {
+			.stream = DMA2_Stream3,
+			.channel = DMA_Channel_3
+		},
+		.recv = {
+			.stream = DMA2_Stream2,
+			.channel = DMA_Channel_3,
+			.irq = DMA2_Stream2_IRQn
+		}
+	}
 };
+void DMA2_Stream2_IRQHandler()
+{
+	quickdma_irq_trigger(&pios_spi_gyro_accel_i_ii_cfg.spi_dma.recv);
+}
 
 static const struct pios_spi_cfg pios_spi_gyro_accel_iii_iv_cfg = {
 	.regs = SPI2,
@@ -226,11 +237,22 @@ static const struct pios_spi_cfg pios_spi_gyro_accel_iii_iv_cfg = {
 			},
 		},
 	},
-	.dma_send_stream = DMA1_Stream4,
-	.dma_send_channel = DMA_Channel_0,
-	.dma_recv_stream = DMA1_Stream3,
-	.dma_recv_channel = DMA_Channel_0
+	.spi_dma = {
+		.send = {
+			.stream = DMA1_Stream4,
+			.channel = DMA_Channel_0
+		},
+		.recv = {
+			.stream = DMA1_Stream3,
+			.channel = DMA_Channel_0,
+			.irq = DMA1_Stream3_IRQn
+		},
+	}
 };
+void DMA1_Stream3_IRQHandler()
+{
+	quickdma_irq_trigger(&pios_spi_gyro_accel_iii_iv_cfg.spi_dma.recv);
+}
 
 pios_spi_t pios_spi_gyro_accel_i_ii_id;
 pios_spi_t pios_spi_gyro_accel_iii_iv_id;
@@ -243,11 +265,11 @@ pios_spi_t pios_spi_gyro_accel_iii_iv_id;
 
 static const struct pios_exti_cfg pios_exti_bmi160_i_cfg __exti_config = {
 	.vector = PIOS_BMI160_IRQHandler,
-	.line = EXTI_Line0,
+	.line = EXTI_Line2,
 	.pin = {
 		.gpio = GPIOC,
 		.init = {
-			.GPIO_Pin = GPIO_Pin_0,
+			.GPIO_Pin = GPIO_Pin_2,
 			.GPIO_Speed = GPIO_Speed_2MHz,
 			.GPIO_Mode = GPIO_Mode_IN,
 			.GPIO_OType = GPIO_OType_OD,
@@ -256,7 +278,7 @@ static const struct pios_exti_cfg pios_exti_bmi160_i_cfg __exti_config = {
 	},
 	.irq = {
 		.init = {
-			.NVIC_IRQChannel = EXTI0_IRQn,
+			.NVIC_IRQChannel = EXTI2_IRQn,
 			.NVIC_IRQChannelPreemptionPriority = PIOS_IRQ_PRIO_HIGH,
 			.NVIC_IRQChannelSubPriority = 0,
 			.NVIC_IRQChannelCmd = ENABLE,
@@ -264,7 +286,7 @@ static const struct pios_exti_cfg pios_exti_bmi160_i_cfg __exti_config = {
 	},
 	.exti = {
 		.init = {
-			.EXTI_Line = EXTI_Line0, // matches above GPIO pin
+			.EXTI_Line = EXTI_Line2, // matches above GPIO pin
 			.EXTI_Mode = EXTI_Mode_Interrupt,
 			.EXTI_Trigger = EXTI_Trigger_Rising,
 			.EXTI_LineCmd = ENABLE,
