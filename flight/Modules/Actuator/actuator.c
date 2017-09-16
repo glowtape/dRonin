@@ -53,6 +53,12 @@
 #include "pios_queue.h"
 #include "misc_math.h"
 
+#if defined(PIOS_INCLUDE_ESCTELEMETRY)
+#include "pios_delay.h"
+#include "pios_esctelemetry.h"
+#include "actuatortelemetry.h"
+#endif
+
 // Private constants
 #define MAX_QUEUE_SIZE 2
 
@@ -89,6 +95,16 @@ static volatile bool actuator_settings_updated = true;
 static volatile bool mixer_settings_updated = true;
 
 static MixerSettingsMixer1TypeOptions types_mixer[MAX_MIX_ACTUATORS];
+
+#if defined(PIOS_INCLUDE_ESCTELEMETRY)
+#define ESC_TELEM_CYCLE_uS 100000
+
+static uint32_t telem_cycle_start;
+static uint8_t telem_servo;
+static uint8_t telem_active = -1;
+
+static ActuatorTelemetryData *telemetry;
+#endif
 
 /* In the mixer, a row consists of values for one output actuator.
  * A column consists of values for scaling one axis's desired command.
@@ -168,6 +184,12 @@ int32_t ActuatorInitialize()
 #if defined(MIXERSTATUS_DIAGNOSTICS)
 	// UAVO only used for inspecting the internal status of the mixer during debug
 	if (MixerStatusInitialize()  == -1) {
+		return -1;
+	}
+#endif
+
+#if defined(PIOS_INCLUDE_ESCTELEMETRY)
+	if (ActuatorTelemetryInitialize() == -1) {
 		return -1;
 	}
 #endif
@@ -459,6 +481,49 @@ static void post_process_scale_and_commit(float *motor_vect, float dT,
 	for (int n = 0; n < MAX_MIX_ACTUATORS; ++n) {
 		PIOS_Servo_Set(n, command.Channel[n]);
 	}
+
+#if defined(PIOS_INCLUDE_ESCTELEMETRY)
+	if (PIOS_ESCTelemetry_IsAvailable()) {
+		/* Just cycle naively through all servos. */
+		if (telem_servo >= MAX_MIX_ACTUATORS && PIOS_DELAY_GetuSSince(telem_cycle_start) > ESC_TELEM_CYCLE_uS) {
+			telem_servo = 0;
+			telem_cycle_start = PIOS_DELAY_GetuS();
+
+			/* Only update the UAVO once all servos have been processed. */
+			if (telemetry)
+				ActuatorTelemetrySet(telemetry);
+		}
+
+		if (telem_active < 0 && telem_servo < MAX_MIX_ACTUATORS) {
+			telem_active = telem_servo;
+			telem_servo++;
+
+			if (PIOS_Servo_RequestTelemetry(telem_active) < -1)
+				telem_active = -1;
+		} else {
+			if (PIOS_ESCTelemetry_DataAvailable()) {
+				/* Parse and stick info UAVO. */
+				struct pios_esctelemetry_info t;
+				PIOS_ESCTelemetry_Get(&t);
+
+				if (!telemetry) {
+					telemetry = PIOS_malloc_no_dma(sizeof(ActuatorTelemetryData));
+					if (!telemetry)
+						PIOS_Assert(0);
+					ActuatorTelemetryGet(telemetry);
+				}
+
+				telemetry->Temperature[telem_active] = t.temperature;
+				telemetry->Voltage[telem_active] = t.voltage;
+				telemetry->Current[telem_active] = t.current;
+				telemetry->Consumed[telem_active] = t.mAh;
+				telemetry->eRPM[telem_active] = t.rpm;
+
+				telem_active = -1;
+			}
+		}
+	}
+#endif
 
 	PIOS_Servo_Update();
 }
