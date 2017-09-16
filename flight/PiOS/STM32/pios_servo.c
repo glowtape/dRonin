@@ -99,6 +99,8 @@ static bool resetting;
 
 static bool dshot_in_use;
 
+static int telemreq_servo;
+
 /* Private function prototypes */
 static uint32_t timer_apb_clock(TIM_TypeDef *timer);
 static uint32_t max_timer_clock(TIM_TypeDef *timer);
@@ -151,6 +153,8 @@ int32_t PIOS_Servo_Init(const struct pios_servo_cfg *cfg)
 		return -1;
 	}
 	memset(output_channels, 0, servo_cfg->num_channels * sizeof(*output_channels));
+
+	telemreq_servo = -1;
 
 	return 0;
 }
@@ -560,7 +564,7 @@ void PIOS_Servo_SetFraction(uint8_t servo, uint16_t fraction,
 		case SYNC_DSHOT_DMA:
 #if defined(PIOS_INCLUDE_DMASHOT)
 			if (PIOS_DMAShot_IsConfigured()) {
-				PIOS_DMAShot_WriteValue(&servo_cfg->channels[servo], fraction >> 5);
+				PIOS_DMAShot_WriteValue(&servo_cfg->channels[servo], fraction >> 5, telemreq_servo == servo);
 			}
 #endif
 			return;
@@ -634,7 +638,7 @@ void PIOS_Servo_Set(uint8_t servo, float position)
 				else if (position < 0)
 					position = 0;
 
-				PIOS_DMAShot_WriteValue(&servo_cfg->channels[servo], position);
+				PIOS_DMAShot_WriteValue(&servo_cfg->channels[servo], position, telemreq_servo == servo);
 			}
 #endif
 			return;
@@ -704,7 +708,9 @@ static int DSHOT_Update()
 		PIOS_Assert(info->value < 2048);
 
 		uint16_t message = info->value << 5;
-		/* Don't set telem req bit for now */
+
+		if (telemreq_servo == i)
+			message |= 1<<4;
 
 		message |= 
 			((message >> 4 ) & 0xf) ^
@@ -875,6 +881,9 @@ void PIOS_Servo_Update(void)
 			dshot_in_use = false;
 		}
 	}
+
+	/* Reset servo request stuff. */
+	telemreq_servo = -1;
 }
 
 /**
@@ -953,6 +962,27 @@ static uint32_t max_timer_clock(TIM_TypeDef *timer)
 		return apb_clock;
 	else
 		return apb_clock * 2;
+}
+
+/**
+ * @brief Requests telemetry from a servo. Can only request from one servo at a time.
+ * @param[in] servo Which servo.
+ * @retval Zero on success, -1 if there's an ongoing request, -2 is telemetry isn't supported on the servo.
+ */
+int PIOS_Servo_RequestTelemetry(uint8_t servo)
+{
+	if (servo >= servo_cfg->num_channels || output_channels[servo].mode < SYNC_DSHOT_300) {
+		/* Currently only DShot supported. */
+		return -2;
+	}
+
+	if (telemreq_servo != -1) {
+		/* There's already a request going. */
+		return -1;
+	}
+
+	telemreq_servo = servo;
+	return 0;
 }
 
 /*
