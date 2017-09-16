@@ -634,7 +634,7 @@ void PIOS_Servo_Set(uint8_t servo, float position)
 				else if (position < 0)
 					position = 0;
 
-				PIOS_DMAShot_WriteValue(&servo_cfg->channels[servo], position);
+				PIOS_DMAShot_WriteValue(&servo_cfg->channels[servo], position, false);
 			}
 #endif
 			return;
