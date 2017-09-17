@@ -971,9 +971,7 @@ static uint32_t max_timer_clock(TIM_TypeDef *timer)
  */
 int PIOS_Servo_RequestTelemetry(uint8_t servo)
 {
-	enum channel_mode m = output_channels[servo].mode;
-
-	if (m < SYNC_DSHOT_300) {
+	if (servo >= servo_cfg->num_channels || output_channels[servo].mode < SYNC_DSHOT_300) {
 		/* Currently only DShot supported. */
 		return -2;
 	}
