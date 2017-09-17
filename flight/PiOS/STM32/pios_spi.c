@@ -79,14 +79,6 @@ bool PIOS_SPI_StartDMA(struct pios_spi_dev *dev, const uint8_t *send, uint8_t *r
 	const struct pios_spi_dma *dma = &dev->cfg->spi_dma;
 	PIOS_Assert(dma);
 
-	quickdma_stop_transfer(dev->dma_send);
-	quickdma_stop_transfer(dev->dma_recv);
-
-	SPI_I2S_DMACmd(dev->cfg->regs, SPI_I2S_DMAReq_Rx, DISABLE);
-	SPI_I2S_DMACmd(dev->cfg->regs, SPI_I2S_DMAReq_Tx, DISABLE);
-
-	SPI_Cmd(dev->cfg->regs, DISABLE);
-
 	/* Not gonna do the whole InitTypeDef stuff every time. */
 	if (send) {
 		quickdma_mem_to_peripheral(dev->dma_send, (uint32_t)send, (uint32_t)&dev->cfg->regs->DR, len, QUICKDMA_SIZE_BYTE);
@@ -120,6 +112,16 @@ void PIOS_SPI_WaitForDMA(struct pios_spi_dev *dev)
 
 	/* Only need to wait for receive, since that's the last thing that'll happen on SPI readout. */
 	quickdma_wait_for_transfer(dev->dma_recv);
+	/* Wait on send, too, anyway. */
+	quickdma_wait_for_transfer(dev->dma_send);
+
+	quickdma_stop_transfer(dev->dma_send);
+	quickdma_stop_transfer(dev->dma_recv);
+
+	SPI_I2S_DMACmd(dev->cfg->regs, SPI_I2S_DMAReq_Rx, DISABLE);
+	SPI_I2S_DMACmd(dev->cfg->regs, SPI_I2S_DMAReq_Tx, DISABLE);
+
+	SPI_Cmd(dev->cfg->regs, DISABLE);
 }
 
 #endif // STM32F4XX

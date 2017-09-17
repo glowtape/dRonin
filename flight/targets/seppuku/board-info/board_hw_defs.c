@@ -148,6 +148,7 @@ static const struct pios_spi_cfg pios_spi_gyro_accel_i_ii_cfg = {
 			},
 		},
 	},
+	/*
 	.spi_dma = {
 		.send = {
 			.stream = DMA2_Stream3,
@@ -158,7 +159,7 @@ static const struct pios_spi_cfg pios_spi_gyro_accel_i_ii_cfg = {
 			.channel = DMA_Channel_3,
 			.irq = DMA2_Stream2_IRQn
 		}
-	}
+	}*/
 };
 void DMA2_Stream2_IRQHandler()
 {
