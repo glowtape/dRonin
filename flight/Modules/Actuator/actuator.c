@@ -97,13 +97,16 @@ static volatile bool mixer_settings_updated = true;
 static MixerSettingsMixer1TypeOptions types_mixer[MAX_MIX_ACTUATORS];
 
 #if defined(PIOS_INCLUDE_ESCTELEMETRY)
-#define ESC_TELEM_CYCLE_uS 100000
+#define ESC_TELEM_CYCLE_uS		100000
+#define ESC_TELEM_TIMEOUT_uS	4000
 
 static uint32_t telem_cycle_start;
-static uint8_t telem_servo;
-static uint8_t telem_active = -1;
+static uint32_t telem_req_start;
+static uint8_t telem_push;
+static uint8_t telem_servo = 0xFF;
+static uint8_t telem_active = 0xFF;
 
-static ActuatorTelemetryData *telemetry;
+static ActuatorTelemetryData *telemetry = NULL;
 #endif
 
 /* In the mixer, a row consists of values for one output actuator.
@@ -478,40 +481,40 @@ static void post_process_scale_and_commit(float *motor_vect, float dT,
 		ActuatorCommandGet(&command);
 	}
 
-	for (int n = 0; n < MAX_MIX_ACTUATORS; ++n) {
-		PIOS_Servo_Set(n, command.Channel[n]);
-	}
-
 #if defined(PIOS_INCLUDE_ESCTELEMETRY)
 	if (PIOS_ESCTelemetry_IsAvailable()) {
+
+		if (!telemetry) {
+			telemetry = PIOS_malloc_no_dma(sizeof(ActuatorTelemetryData));
+			if (!telemetry)
+				PIOS_Assert(0);
+			ActuatorTelemetryGet(telemetry);
+		}
+
 		/* Just cycle naively through all servos. */
 		if (telem_servo >= MAX_MIX_ACTUATORS && PIOS_DELAY_GetuSSince(telem_cycle_start) > ESC_TELEM_CYCLE_uS) {
 			telem_servo = 0;
 			telem_cycle_start = PIOS_DELAY_GetuS();
-
-			/* Only update the UAVO once all servos have been processed. */
-			if (telemetry)
-				ActuatorTelemetrySet(telemetry);
 		}
 
-		if (telem_active < 0 && telem_servo < MAX_MIX_ACTUATORS) {
+		if ((telem_active == 0xFF) && (telem_servo < MAX_MIX_ACTUATORS)) {
+
 			telem_active = telem_servo;
 			telem_servo++;
 
+			telem_req_start = PIOS_DELAY_GetuS();
+
 			if (PIOS_Servo_RequestTelemetry(telem_active) < -1)
-				telem_active = -1;
-		} else {
+				telem_active = 0xFF;
+
+			if (telem_servo >= MAX_MIX_ACTUATORS)
+				telem_push = 1;
+
+		} else if (telem_active < 0xFF) {
 			if (PIOS_ESCTelemetry_DataAvailable()) {
 				/* Parse and stick info UAVO. */
 				struct pios_esctelemetry_info t;
 				PIOS_ESCTelemetry_Get(&t);
-
-				if (!telemetry) {
-					telemetry = PIOS_malloc_no_dma(sizeof(ActuatorTelemetryData));
-					if (!telemetry)
-						PIOS_Assert(0);
-					ActuatorTelemetryGet(telemetry);
-				}
 
 				telemetry->Temperature[telem_active] = t.temperature;
 				telemetry->Voltage[telem_active] = t.voltage;
@@ -519,11 +522,25 @@ static void post_process_scale_and_commit(float *motor_vect, float dT,
 				telemetry->Consumed[telem_active] = t.mAh;
 				telemetry->eRPM[telem_active] = t.rpm;
 
-				telem_active = -1;
+				telem_active = 0xFF;
+			} else if (PIOS_DELAY_GetuSSince(telem_req_start) > ESC_TELEM_TIMEOUT_uS) {
+				telemetry->Voltage[telem_active] = -1;
+				telemetry->Current[telem_active] = -1;
+
+				telem_active = 0xFF;
 			}
+		}
+
+		if (telem_push && telemetry && telem_active == 0xFF) {
+			ActuatorTelemetrySet(telemetry);
+			telem_push = 0;
 		}
 	}
 #endif
+
+	for (int n = 0; n < MAX_MIX_ACTUATORS; ++n) {
+		PIOS_Servo_Set(n, command.Channel[n]);
+	}
 
 	PIOS_Servo_Update();
 }
