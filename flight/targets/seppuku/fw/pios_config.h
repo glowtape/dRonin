@@ -93,6 +93,7 @@
 
 /* DMA DShot */
 #define PIOS_INCLUDE_DMASHOT
+#define PIOS_INCLUDE_ESCTELEMETRY
 
 /* Alarm Thresholds */
 

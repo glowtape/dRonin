@@ -135,9 +135,10 @@ void PIOS_DMAShot_Validate();
  * @brief Sets the throttle value of a specific servo.
  * @param[in] servo_channel The servo to update.
  * @param[in] throttle The desired throttle value (0-2047).
+ * @param[in] telemreq Requests telemetry from ESC on non-zero value.
  * @retval TRUE on success, FALSE if the channel's not set up for DMA.
  */
-void PIOS_DMAShot_WriteValue(const struct pios_tim_channel *servo_channel, uint16_t throttle);
+void PIOS_DMAShot_WriteValue(const struct pios_tim_channel *servo_channel, uint16_t throttle, uint8_t telemreq);
 
 /**
  * @brief Triggers the configured DMA channels to fire and send throttle values to the timer DMAR and optional CCRx registers.
