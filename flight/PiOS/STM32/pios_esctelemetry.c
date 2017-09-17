@@ -105,7 +105,7 @@ static bool PIOS_ESCTelemetry_UnpackFrame(struct pios_esctelemetry_dev *dev);
  */
 static void PIOS_ESCTelemetry_Supervisor(uintptr_t context);
 
-static struct pios_esctelemetry_dev *dev;
+static struct pios_esctelemetry_dev *esct_dev;
 
 static bool PIOS_ESCTelemetry_Validate(const struct pios_esctelemetry_dev *dev)
 {
@@ -115,22 +115,22 @@ static bool PIOS_ESCTelemetry_Validate(const struct pios_esctelemetry_dev *dev)
 int PIOS_ESCTelemetry_Init(uintptr_t *esctelem_id, const struct pios_com_driver *driver,
 		uintptr_t usart_id)
 {
-	if (dev)
+	if (esct_dev)
 		return -1;
 
-	dev = PIOS_malloc_no_dma(sizeof(struct pios_esctelemetry_dev));
+	esct_dev = PIOS_malloc_no_dma(sizeof(struct pios_esctelemetry_dev));
 
-	if (!dev)
+	if (!esct_dev)
 		return -1;
 
-	memset(dev, 0, sizeof(*dev));
-	dev->magic = PIOS_ESCTELEMETRY_MAGIC;
+	memset(esct_dev, 0, sizeof(*esct_dev));
+	esct_dev->magic = PIOS_ESCTELEMETRY_MAGIC;
 
-	*esctelem_id = (uintptr_t)dev;
-	dev->usart_id = usart_id;
-	dev->usart_driver = driver;
+	*esctelem_id = (uintptr_t)esct_dev;
+	esct_dev->usart_id = usart_id;
+	esct_dev->usart_driver = driver;
 
-	PIOS_ESCTelemetry_ResetBuffer(dev);
+	PIOS_ESCTelemetry_ResetBuffer(esct_dev);
 
 	if (!PIOS_RTC_RegisterTickCallback(PIOS_ESCTelemetry_Supervisor, *esctelem_id))
 		PIOS_Assert(0);
@@ -215,13 +215,13 @@ static void PIOS_ESCTelemetry_Supervisor(uintptr_t context)
 
 bool PIOS_ESCTelemetry_IsAvailable()
 {
-	return PIOS_ESCTelemetry_Validate(dev);
+	return PIOS_ESCTelemetry_Validate(esct_dev);
 }
 
 bool PIOS_ESCTelemetry_DataAvailable()
 {
-	if (PIOS_ESCTelemetry_Validate(dev)) {
-		return dev->telem_available;
+	if (PIOS_ESCTelemetry_Validate(esct_dev)) {
+		return esct_dev->telem_available;
 	} else {
 		/* Eh, don't blow up anything, if this fails. */
 		return false;
@@ -230,8 +230,9 @@ bool PIOS_ESCTelemetry_DataAvailable()
 
 void PIOS_ESCTelemetry_Get(struct pios_esctelemetry_info *t)
 {
-	if (PIOS_ESCTelemetry_Validate(dev) && t) {
-		memcpy(t, &dev->telem, sizeof(*t));
+	if (PIOS_ESCTelemetry_Validate(esct_dev) && t) {
+		memcpy(t, &esct_dev->telem, sizeof(*t));
+		esct_dev->telem_available = 0;
 	}
 }
 
