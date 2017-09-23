@@ -97,16 +97,28 @@ static volatile bool mixer_settings_updated = true;
 static MixerSettingsMixer1TypeOptions types_mixer[MAX_MIX_ACTUATORS];
 
 #if defined(PIOS_INCLUDE_ESCTELEMETRY)
-#define ESC_TELEM_CYCLE_uS		100000
-#define ESC_TELEM_TIMEOUT_uS	4000
 
-static uint32_t telem_cycle_start;
-static uint32_t telem_req_start;
-static uint8_t telem_push;
-static uint8_t telem_servo = 0xFF;
-static uint8_t telem_active = 0xFF;
+#define ESC_TELEM_CYCLE_uS		200000	/* Poll ESCs every 200ms. */
+#define ESC_TELEM_TIMEOUT_uS	5000	/* Transmission is supposed to take 900us. Timeout at 5ms. */
 
-static ActuatorTelemetryData *telemetry = NULL;
+struct telemetry_state {
+
+	uint32_t cycle_start;		/* Timestamp of when the current round of requests started. */
+	uint32_t req_start;			/* Timestamp of ongoing request on single ESC. */
+	uint8_t push;				/* Flag whether to push the UAVO. */
+	uint8_t servo;				/* Servo counter. */
+	uint8_t active;				/* Active servo number. */
+
+	uint8_t ok;					/* Successful response counter, flag. */
+	float voltage;				/* Accumulated voltages, will be divided by value in 'ok'. */
+	float consumed;				/* Accumulated reported consumption. */
+
+	ActuatorTelemetryData telemetry;
+
+};
+
+static struct telemetry_state *tlm;
+
 #endif
 
 /* In the mixer, a row consists of values for one output actuator.
@@ -484,56 +496,73 @@ static void post_process_scale_and_commit(float *motor_vect, float dT,
 #if defined(PIOS_INCLUDE_ESCTELEMETRY)
 	if (PIOS_ESCTelemetry_IsAvailable()) {
 
-		if (!telemetry) {
-			telemetry = PIOS_malloc_no_dma(sizeof(ActuatorTelemetryData));
-			if (!telemetry)
+		/* Process telemetry request stuff before servo settings. */
+
+		if (!tlm) {
+			tlm = PIOS_malloc_no_dma(sizeof(*tlm));
+			if (!tlm)
 				PIOS_Assert(0);
-			ActuatorTelemetryGet(telemetry);
+
+			tlm->servo = 0xFF;
+			tlm->active = 0xFF;
+
+			ActuatorTelemetryGet(&tlm->telemetry);
 		}
 
 		/* Just cycle naively through all servos. */
-		if (telem_servo >= MAX_MIX_ACTUATORS && PIOS_DELAY_GetuSSince(telem_cycle_start) > ESC_TELEM_CYCLE_uS) {
-			telem_servo = 0;
-			telem_cycle_start = PIOS_DELAY_GetuS();
+		if (tlm->servo >= MAX_MIX_ACTUATORS && PIOS_DELAY_GetuSSince(tlm->cycle_start) > ESC_TELEM_CYCLE_uS) {
+			tlm->servo = 0;
+			tlm->ok = 0;
+			tlm->cycle_start = PIOS_DELAY_GetuS();
 		}
 
-		if ((telem_active == 0xFF) && (telem_servo < MAX_MIX_ACTUATORS)) {
+		if ((tlm->active == 0xFF) && (tlm->servo < MAX_MIX_ACTUATORS)) {
+			/* If active servo is 0xFF, no request is active, either because we're starting over,
+			   the servo doesn't exists, or isn't configured to DShot. */
 
-			telem_active = telem_servo;
-			telem_servo++;
+			tlm->active = tlm->servo;
+			tlm->servo++;
 
-			telem_req_start = PIOS_DELAY_GetuS();
+			tlm->req_start = PIOS_DELAY_GetuS();
 
-			if (PIOS_Servo_RequestTelemetry(telem_active) < -1)
-				telem_active = 0xFF;
+			/* We don't care about ongoing requests, because we shouldn't even be here, if one is. */
+			if (PIOS_Servo_RequestTelemetry(tlm->active) < -1)
+				tlm->active = 0xFF;
 
-			if (telem_servo >= MAX_MIX_ACTUATORS)
-				telem_push = 1;
+			/* If this is the last servo being polled, push the UAVO, once the request finishes. */
+			if (tlm->servo >= MAX_MIX_ACTUATORS)
+				tlm->push = 1;
 
-		} else if (telem_active < 0xFF) {
+		} else if (tlm->active < 0xFF) {
 			if (PIOS_ESCTelemetry_DataAvailable()) {
 				/* Parse and stick info UAVO. */
 				struct pios_esctelemetry_info t;
 				PIOS_ESCTelemetry_Get(&t);
 
-				telemetry->Temperature[telem_active] = t.temperature;
-				telemetry->Voltage[telem_active] = t.voltage;
-				telemetry->Current[telem_active] = t.current;
-				telemetry->Consumed[telem_active] = t.mAh;
-				telemetry->eRPM[telem_active] = t.rpm;
+				tlm->voltage += t.voltage;
+				tlm->consumed += t.mAh;
+				tlm->telemetry.Temperature[tlm->active] = t.temperature;
+				tlm->telemetry.Current[tlm->active] = t.current * 0.01f;
+				tlm->telemetry.eRPM[tlm->active] = t.rpm;
+				tlm->ok++;
 
-				telem_active = 0xFF;
-			} else if (PIOS_DELAY_GetuSSince(telem_req_start) > ESC_TELEM_TIMEOUT_uS) {
-				telemetry->Voltage[telem_active] = -1;
-				telemetry->Current[telem_active] = -1;
-
-				telem_active = 0xFF;
+				tlm->active = 0xFF;
+			} else if (PIOS_DELAY_GetuSSince(tlm->req_start) > ESC_TELEM_TIMEOUT_uS) {
+				/* Just hold values on a timeout. */
+				tlm->active = 0xFF;
 			}
 		}
 
-		if (telem_push && telemetry && telem_active == 0xFF) {
-			ActuatorTelemetrySet(telemetry);
-			telem_push = 0;
+		if (tlm && tlm->push && tlm->active == 0xFF && tlm->ok) {
+			tlm->telemetry.Voltage = tlm->voltage / (float)tlm->ok;
+			/* Only replace the Consumed value in the UAVO, if the readout is larger.
+			   Because timeouts and all that. */
+			if (tlm->consumed > tlm->telemetry.Consumed) tlm->telemetry.Consumed = tlm->consumed;
+
+			ActuatorTelemetrySet(&tlm->telemetry);
+			tlm->push = 0;
+			tlm->voltage = 0;
+			tlm->consumed = 0;
 		}
 	}
 #endif
