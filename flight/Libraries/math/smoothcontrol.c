@@ -143,7 +143,7 @@ void smoothcontrol_run_thrust(smoothcontrol_state state, float *new_signal)
 
 		// If prediction undershoots while original signal is positive
 		// bound it to zero.
-		if(*new_signal < 0)
+		if(*new_signal < 0.0000001f)
 			*new_signal = 0;
 	}
 }
