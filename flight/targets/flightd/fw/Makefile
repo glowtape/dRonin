@@ -139,6 +139,7 @@ SRC += $(MATHLIB)/pid.c
 SRC += $(MATHLIB)/lpfilter.c
 SRC += $(MATHLIB)/smoothcontrol.c
 SRC += $(CRYPTOLIB)/sha1.c
+SRC += $(MATHLIB)/virtualgyro.c
 
 include $(PIOS)/posix/library.mk
 
