@@ -8,9 +8,6 @@
 	The Scalar Kalman Filter
 	http://www.swarthmore.edu/NatSci/echeeve1/Ref/Kalman/ScalarKalman.html
 
-	Adaptive Adjustment of Noise Covariance in Kalman Filter for Dynamic State Estimation
-	https://arxiv.org/abs/1702.00884
-
 */
 
 struct mse {
@@ -91,7 +88,7 @@ float mse_get(struct mse *m)
 
 struct virtualgyro_global *vgs;				/* Global runtime stuff. */
 
-struct virtualgyro *virtualgyro_create(float dT, float tau, float R, float Q)
+struct virtualgyro *virtualgyro_create()
 {
 	struct virtualgyro *g;
 
@@ -100,39 +97,44 @@ struct virtualgyro *virtualgyro_create(float dT, float tau, float R, float Q)
 		return NULL;
 	memset(g, 0, sizeof(*g));
 
-#if defined(MEASURE_ACTUAL_MSE)
-	g->p_post = mse_create(tau * APOSTERIORI_SCALER, dT);
-	if (!g->p_post)
-		return NULL;
-#else
-	g->p_post = 0.25f;
-#endif
-
-	g->Q = Q;
-	g->R = R;
-	g->dT = dT;
-	g->tau = tau;
-
-#if defined(AUTO_RQ_MSE)
-	g->r_mse = mse_create(tau * APOSTERIORI_SCALER, dT);
-	g->q_mse = mse_create(tau * APOSTERIORI_SCALER, dT);
-#endif
-
 	return g;
 }
 
-void virtualgyro_create_model(struct virtualgyro *g, float beta)
+void virtualgyro_configure(struct virtualgyro *g, float dT, float tau, float R, float Q)
+{
+	g->Q = Q;
+	g->R = R;
+	g->dT = dT;
+	g->tau = powf(M_E, tau);
+
+#if defined(MEASURE_ACTUAL_MSE)
+	g->p_post = mse_create(g->tau * FULL_MSE_COV_TAU_SCALE, dT);
+#else
+	g->p_tau = g->tau * SIMPLE_COV_TAU_SCALE;
+	g->p_post = 0.25f;
+#endif
+}
+
+void virtualgyro_set_model(struct virtualgyro *g, float beta)
 {
 	if (!g)
 		return;
 
-	lpfilter_create(&g->lpf, 1, g->dT, 1, 1);
+	float tau = g->tau;
+	/* Drop tau a tiny bit to compensate for digital 2nd order delay. */
+	if (tau > 0.009f) tau -= 0.001f;
+
+	lpfilter_create(&g->lpf, 1.0f / (tau * (float)M_PI * 1.414f), g->dT, 2, 1);
 	g->torque = powf(M_E, beta);
 }
 
 float virtualgyro_update(struct virtualgyro *g, float xj, float actuator)
 {
+#if defined(MEASURE_ACTUAL_MSE)
+	if (!g || !g->p_post)
+#else
 	if (!g)
+#endif
 		return xj;
 
 	float buj = 0;
@@ -171,7 +173,8 @@ float virtualgyro_update(struct virtualgyro *g, float xj, float actuator)
 #if defined(MEASURE_ACTUAL_MSE)
 	mse_update(g->p_post, g->residual);
 #else
-	g->p_post = g->p_prio * (1 - g->kj);
+	// g->p_post = g->p_prio * (1 - g->kj);
+	g->p_post = g->p_post + (g->dT / (g->p_tau + g->dT)) * (g->residual * g->residual - g->p_post);
 #endif
 
 #if defined(AUTO_PROCESS_NOISE)
@@ -229,7 +232,7 @@ float virtualgyro_get_residual(struct virtualgyro *g)
 	return g->residual;
 }
 
-float virtualgyro_get_ppost(struct virtualgyro *g)
+float virtualgyro_get_cov(struct virtualgyro *g)
 {
 	if (!g)
 		PIOS_Assert(0);

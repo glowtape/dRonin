@@ -1,13 +1,13 @@
-#ifndef KALMANGYRO_H
-#define KALMANGYRO_H
+#ifndef VIRTUALGYRO_H
+#define VIRTUALGYRO_H
 
 #include "lpfilter.h"
 
 /* How large to scale the a posteriori history for the MSE, in relation to tau. */
-#define APOSTERIORI_SCALER 			2.0f
+#define FULL_MSE_COV_TAU_SCALE		1.5f
+#define SIMPLE_COV_TAU_SCALE		1.2f
 
-#define MEASURE_ACTUAL_MSE
-// #define AUTO_PROCESS_NOISE
+//#define MEASURE_ACTUAL_MSE
 
 struct virtualgyro {
 
@@ -17,6 +17,7 @@ struct virtualgyro {
 #if defined(MEASURE_ACTUAL_MSE)
 	struct mse *p_post;		/* A posteriori covariance based on moving window MSE. */
 #else
+	float p_tau;			/* Forgetting factor. */
 	float p_post;			/* Simple posteriori covariance. */
 #endif
 
@@ -42,14 +43,15 @@ struct virtualgyro {
 
 
 void virtualgyro_initialize(float r_min, float r_max, float r_alpha, float q_min, float q_max, float q_alpha);
-struct virtualgyro *virtualgyro_create(float dT, float tau, float R, float Q);
-void virtualgyro_create_model(struct virtualgyro *g, float beta);
+struct virtualgyro *virtualgyro_create();
+void virtualgyro_configure(struct virtualgyro *g, float dT, float tau, float R, float Q);
+void virtualgyro_set_model(struct virtualgyro *g, float beta);
 float virtualgyro_update(struct virtualgyro *g, float xj, float actuator);
 float virtualgyro_get_value(struct virtualgyro *g);
 float virtualgyro_get_gain(struct virtualgyro *g);
 float virtualgyro_get_autoR(struct virtualgyro *g);
 float virtualgyro_get_autoQ(struct virtualgyro *g);
 float virtualgyro_get_residual(struct virtualgyro *g);
-float virtualgyro_get_ppost(struct virtualgyro *g);
+float virtualgyro_get_cov(struct virtualgyro *g);
 
 #endif // KALMANGYRO_H

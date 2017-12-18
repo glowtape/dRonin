@@ -36,6 +36,7 @@
 #include "pios_queue.h"
 #include "misc_math.h"
 #include "lpfilter.h"
+#include "virtualgyro.h"
 #include "sensors.h"
 
 #if defined(PIOS_INCLUDE_PX4FLOW)
@@ -58,6 +59,9 @@ extern pios_i2c_t external_i2c_adapter_id;
 #include "inssettings.h"
 #include "magnetometer.h"
 #include "magbias.h"
+#include "virtualgyrosettings.h"
+#include "virtualgyrostatus.h"
+#include "actuatordesired.h"
 #include "coordinate_conversions.h"
 
 // Private constants
@@ -95,12 +99,17 @@ static void mag_calibration_fix_length(MagnetometerData *mag);
 
 static void updateTemperatureComp(float temperature, float *temp_bias);
 static void sensors_settings_update();
+static void virtualgyro_settings_update();
 
 // Private variables
 static INSSettingsData insSettings;
 static AccelsData accelsData;
 
 static volatile bool settings_updated = true;
+static volatile bool virtualgyro_updated = true;
+
+static bool virtualgyro_enabled = false;
+static struct virtualgyro *vg[3];
 
 // These values are initialized by settings but can be updated by the attitude algorithm
 static bool bias_correct_gyro = true;
@@ -150,7 +159,9 @@ int32_t sensors_init(void)
 		|| MagBiasInitialize() == -1 \
 		|| AttitudeSettingsInitialize() == -1 \
 		|| SensorSettingsInitialize() == -1 \
-		|| INSSettingsInitialize() == -1) {
+		|| INSSettingsInitialize() == -1 \
+		|| VirtualGyroSettingsInitialize() == -1 \
+		|| VirtualGyroStatusInitialize() == -1) {
 
 		return -1;
 	}
@@ -199,6 +210,7 @@ int32_t sensors_init(void)
 	AttitudeSettingsConnectCallbackCtx(UAVObjCbSetFlag, &settings_updated);
 	SensorSettingsConnectCallbackCtx(UAVObjCbSetFlag, &settings_updated);
 	INSSettingsConnectCallbackCtx(UAVObjCbSetFlag, &settings_updated);
+	VirtualGyroSettingsConnectCallbackCtx(UAVObjCbSetFlag, &virtualgyro_updated);
 
 #ifdef PIOS_INCLUDE_SIMSENSORS
 	simsensors_init();
@@ -219,6 +231,9 @@ bool sensors_step()
 
 	if (settings_updated) {
 		sensors_settings_update();
+	}
+	if (virtualgyro_updated) {
+		virtualgyro_settings_update();
 	}
 
 	struct pios_sensor_gyro_data gyros;
@@ -367,7 +382,25 @@ static void update_gyros(struct pios_sensor_gyro_data *gyros)
 	    gyros->z * gyro_scale[2]
 	};
 
-	lpfilter_run(gyro_filter, gyros_out);
+	if (virtualgyro_enabled) {
+		VirtualGyroStatusData vs;
+
+		ActuatorDesiredData d;
+		ActuatorDesiredGet(&d);
+		float *a = &d.Roll;
+
+		for (int i = 0; i < 3; i++) {
+			gyros_out[i] = virtualgyro_update(vg[i], gyros_out[i], a[i]);
+
+			vs.Gain[i] = virtualgyro_get_gain(vg[i]);
+			vs.Covariance[i] = virtualgyro_get_cov(vg[i]);
+		}
+
+		VirtualGyroStatusSet(&vs);
+	} else {
+		lpfilter_run(gyro_filter, gyros_out);
+	}
+	
 
 	GyrosData gyrosData;
 	gyrosData.temperature = gyros->temperature;
@@ -752,3 +785,25 @@ static void sensors_settings_update()
   * @}
   * @}
   */
+
+static void virtualgyro_settings_update()
+{
+	virtualgyro_updated = false;
+
+	VirtualGyroSettingsData vgs;
+	VirtualGyroSettingsGet(&vgs);
+
+	if (vgs.Enable) {
+		float gyro_dT = 1.0f / (float)PIOS_SENSORS_GetSampleRate(PIOS_SENSOR_GYRO);
+		for (int i = 0; i < 3; i++) {
+			if (!vg[i]) {
+				vg[i] = virtualgyro_create();
+			}
+			virtualgyro_configure(vg[i], gyro_dT, vgs.Tau[i], vgs.R, vgs.Q);
+			virtualgyro_set_model(vg[i], vgs.Beta[i]);
+		}
+		virtualgyro_enabled = true;
+	} else {
+		virtualgyro_enabled = false;
+	}
+}

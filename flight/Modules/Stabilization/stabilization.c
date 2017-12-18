@@ -66,7 +66,6 @@
 #include "pid.h"
 #include "misc_math.h"
 #include "smoothcontrol.h"
-#include "virtualgyro.h"
 
 // Sensors subsystem which runs in this task
 #include "sensors.h"
@@ -146,8 +145,6 @@ smoothcontrol_state rc_smoothing;
 #ifndef NO_CONTROL_DEADBANDS
 struct pid_deadband *deadbands = NULL;
 #endif
-
-static struct virtualgyro *vgyro[3];
 
 static volatile bool settings_flag = true;
 static volatile bool flightStatusUpdated = true;
@@ -445,12 +442,6 @@ static void stabilizationTask(void* parameters)
 		ident_shift = 5;
 	}
 
-	for (int i = 0; i < 3; i++) {
-		vgyro[i] = virtualgyro_create(dT_expected, 0.016f, 5.0f, 0.1f);
-		virtualgyro_create_model(vgyro[i], 9.8f);
-	}
-
-
 	ident_wiggle_points = (1 << (ident_shift + 3));
 	uint32_t ident_mask = ident_wiggle_points - 1;
 
@@ -655,19 +646,6 @@ static void stabilizationTask(void* parameters)
 			}
 
 			previous_mode[i] = axis_mode[i];
-
-			if (vgyro[i])
-			{
-				virtualgyro_update(vgyro[i], gyro_filtered[i], actuatorDesiredAxis[i]);
-
-				if (i == 0) {
-					RateDesiredData rd;
-					rd.Roll = virtualgyro_get_value(vgyro[0]);
-					rd.Pitch = virtualgyro_get_autoQ(vgyro[0]);
-					rd.Yaw = virtualgyro_get_gain(vgyro[0]);
-					RateDesiredSet(&rd);
-				}
-			}
 
 			// Apply the selected control law
 			switch(axis_mode[i])

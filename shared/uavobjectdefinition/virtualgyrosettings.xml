@@ -1,0 +1,23 @@
+<xml>
+	<object name="VirtualGyroSettings" settings="true" singleinstance="true">
+		<description>Configuration of the virtual modelled gyro.</description>
+		<access gcs="readwrite" flight="readwrite"/>
+		<logging updatemode="manual" period="0"/>
+		<telemetrygcs acked="true" updatemode="onchange" period="0"/>
+		<telemetryflight acked="true" updatemode="onchange" period="0"/>
+
+		<field name="Enable" defaultvalue="FALSE" elements="1" type="enum" units="">
+			<options>
+				<option>FALSE</option>
+				<option>TRUE</option>
+			</options>
+		</field>
+
+		<field name="Beta" defaultvalue="9.25" elementnames="Roll,Pitch,Yaw" type="float" units="" />
+		<field name="Tau" defaultvalue="-3" elementnames="Roll,Pitch,Yaw" type="float" units="" />
+
+		<field name="R" defaultvalue="20" elements="1" type="float" units="" />
+		<field name="Q" defaultvalue="0.1" elements="1" type="float" units="" />
+
+	</object>
+</xml>
