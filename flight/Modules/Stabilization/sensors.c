@@ -383,6 +383,8 @@ static void update_gyros(struct pios_sensor_gyro_data *gyros)
 	    gyros->z * gyro_scale[2]
 	};
 
+	lpfilter_run(gyro_filter, gyros_out);
+
 	if (virtualgyro_enabled) {
 		VirtualGyroStatusData vs;
 
@@ -402,7 +404,7 @@ static void update_gyros(struct pios_sensor_gyro_data *gyros)
 	}
 
 	if (!(virtualgyro_enabled & virtualgyro_bypasslpf)) {
-		lpfilter_run(gyro_filter, gyros_out);
+		
 	}
 
 	GyrosData gyrosData;

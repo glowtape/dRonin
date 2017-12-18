@@ -217,7 +217,10 @@ def handle_open(ignored=False, fname=None):
 #        plot_vs_time('AttitudeActual', ['Yaw', 'Roll', 'Pitch'])
         dlg.setValue(975)
         plot_vs_time('Gyros', ['x', 'y', 'z'])
-        plot_vs_time('ActuatorCommand', ['Channel:0', 'Channel:1', 'Channel:2', 'Channel:3'])
+#        plot_vs_time('ActuatorCommand', ['Channel:0', 'Channel:1', 'Channel:2', 'Channel:3'])
+	plot_vs_time('VirtualGyroStatus', ['Gain:0', 'Gain:1', 'Gain:2'])
+	plot_vs_time('VirtualGyroStatus', ['Covariance:0', 'Covariance:1', 'Covariance:2'])
+	plot_vs_time('VirtualGyroStatus', ['R:0', 'R:1', 'R:2'])
 
         objtyps = { k:v for k,v in objtyps.items() if v in t.last_values }
 
