@@ -1,12 +1,12 @@
 #!/usr/bin/env python
 
-import dronin_pyqtgraph as pg
-from dronin_pyqtgraph.Qt import QtCore, QtGui
+import pyqtgraph as pg
+from pyqtgraph.Qt import QtCore, QtGui
 import numpy as np
 
 from dronin.logviewer.plotdockarea import PlotDockArea
 
-from dronin_pyqtgraph.dockarea import *
+from pyqtgraph.dockarea import *
 
 import six
 
@@ -205,16 +205,16 @@ def handle_open(ignored=False, fname=None):
         global last_plot
         last_plot = None
 
-        thrust_plot = plot_vs_time('StabilizationDesired', 'Thrust')
+#        thrust_plot = plot_vs_time('StabilizationDesired', 'Thrust')
 
         clear_plots(skip=[last_plot])
 
-        for tm,text in event_series:
-            thrust_plot.addLine(x=tm)
+#        for tm,text in event_series:
+#            thrust_plot.addLine(x=tm)
             # label=text, labelOpts={'rotateAxis' : (1,0)} )
 
-        dlg.setValue(925)
-        plot_vs_time('AttitudeActual', ['Yaw', 'Roll', 'Pitch'])
+#        dlg.setValue(925)
+#        plot_vs_time('AttitudeActual', ['Yaw', 'Roll', 'Pitch'])
         dlg.setValue(975)
         plot_vs_time('Gyros', ['x', 'y', 'z'])
         plot_vs_time('ActuatorCommand', ['Channel:0', 'Channel:1', 'Channel:2', 'Channel:3'])

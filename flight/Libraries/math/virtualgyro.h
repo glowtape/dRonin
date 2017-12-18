@@ -50,7 +50,6 @@ float virtualgyro_update(struct virtualgyro *g, float xj, float actuator);
 float virtualgyro_get_value(struct virtualgyro *g);
 float virtualgyro_get_gain(struct virtualgyro *g);
 float virtualgyro_get_autoR(struct virtualgyro *g);
-float virtualgyro_get_autoQ(struct virtualgyro *g);
 float virtualgyro_get_residual(struct virtualgyro *g);
 float virtualgyro_get_cov(struct virtualgyro *g);
 

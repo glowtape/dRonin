@@ -109,6 +109,7 @@ static volatile bool settings_updated = true;
 static volatile bool virtualgyro_updated = true;
 
 static bool virtualgyro_enabled = false;
+static bool virtualgyro_bypasslpf = true;
 static struct virtualgyro *vg[3];
 
 // These values are initialized by settings but can be updated by the attitude algorithm
@@ -394,13 +395,15 @@ static void update_gyros(struct pios_sensor_gyro_data *gyros)
 
 			vs.Gain[i] = virtualgyro_get_gain(vg[i]);
 			vs.Covariance[i] = virtualgyro_get_cov(vg[i]);
+			vs.R[i] = virtualgyro_get_autoR(vg[i]);
 		}
 
 		VirtualGyroStatusSet(&vs);
-	} else {
+	}
+
+	if (!(virtualgyro_enabled & virtualgyro_bypasslpf)) {
 		lpfilter_run(gyro_filter, gyros_out);
 	}
-	
 
 	GyrosData gyrosData;
 	gyrosData.temperature = gyros->temperature;
@@ -803,6 +806,7 @@ static void virtualgyro_settings_update()
 			virtualgyro_set_model(vg[i], vgs.Beta[i]);
 		}
 		virtualgyro_enabled = true;
+		virtualgyro_bypasslpf = vgs.BypassLPF > 0;
 	} else {
 		virtualgyro_enabled = false;
 	}

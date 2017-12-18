@@ -66,6 +66,7 @@
 #include "systemident.h"
 #include "velocityactual.h"
 #include "waypointactive.h"
+#include "virtualgyrostatus.h"
 
 #include "pios_bl_helper.h"
 #include "pios_streamfs_priv.h"
@@ -98,6 +99,7 @@ static uint16_t get_minimum_logging_period();
 static void unregister_object(UAVObjHandle obj);
 static void register_object(UAVObjHandle obj);
 static void register_default_profile();
+static void lean_profile();
 static void logAll(UAVObjHandle obj);
 static void logSettings(UAVObjHandle obj);
 static void writeHeader();
@@ -338,6 +340,8 @@ static void loggingTask(void *parameters)
 					register_default_profile();
 					break;
 				case LOGGINGSETTINGS_PROFILE_CUSTOM:
+					lean_profile();
+					break;
 				case LOGGINGSETTINGS_PROFILE_FULLBORE:
 					UAVObjIterate(&register_object);
 					break;
@@ -646,6 +650,16 @@ static void register_default_profile()
 	}
 }
 
+static void lean_profile()
+{
+	// For the default profile, we limit things to 100Hz (for now)
+	uint16_t min_period = MAX(get_minimum_logging_period(), 10);
+
+	UAVObjConnectCallback(GyrosHandle(), obj_updated_callback, NULL, EV_UPDATED | EV_UNPACKED);
+	if (VirtualGyroStatusHandle()) {
+		UAVObjConnectCallbackThrottled(VirtualGyroStatusHandle(), obj_updated_callback, NULL, EV_UPDATED | EV_UNPACKED, 4 * min_period);
+	}
+}
 
 /**
  * Write log file header

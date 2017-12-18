@@ -12,6 +12,9 @@
     <field name="Covariance" defaultvalue="0" elementnames="Roll,Pitch,Yaw" type="float" units="deg/s">
       <description/>
     </field>
+    <field name="R" defaultvalue="0" elementnames="Roll,Pitch,Yaw" type="float" units="">
+      <description />
+    </field>
 
   </object>
 </xml>

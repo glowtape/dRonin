@@ -169,6 +169,18 @@ float virtualgyro_update(struct virtualgyro *g, float xj, float actuator)
 	/* Get a posteriori residual error for adaptive R. */
 	g->residual = xj - g->xhat;
 
+	/* Try to maintain Kalman gain below 0.25 by adapting R. */
+	if (xj < 180.0f) {
+		/* Only do this during "small" rotational speeds . */
+		if (g->kj > 0.25f) {
+			g->R += 0.07f;
+		} else if (g->kj < 0.09f) {
+			g->R -= 0.05f;
+		}
+		if (g->R < 0.5f) g->R = 0.5f;
+		else if (g->R > 250.0f) g->R = 250.0f;
+	}
+
 	/* Calculate/measure a posteriori covariance. */
 #if defined(MEASURE_ACTUAL_MSE)
 	mse_update(g->p_post, g->residual);
