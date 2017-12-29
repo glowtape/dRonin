@@ -78,7 +78,7 @@ float mse_update(struct mse *m, float val)
 		PIOS_Assert(0);
 		//return val;
 
-	uint v = (uint)(val * val * m->div * 10000.0f);
+	uint v = (uint)(val * val * 10000.0f * m->div);
 
 	m->xval -= m->samples[m->pos];
 	m->xval += v;
@@ -106,20 +106,6 @@ inline float mse_get(struct mse *m)
 	return m->val;
 }
 
-/* Test function */
-
-float time_cnt = 0;
-float noise(float dT)
-{
-	const float rand_spread = 5.0f;
-	const float vib_spread = 50.0f;
-	const float vib_freq = 140.0f;
-
-	time_cnt += dT;
-
-	return sinf(time_cnt * (float)M_PI * 2.0f * time_cnt * vib_freq) * vib_spread - (vib_spread * 0.5f) + (((float)rand() * rand_spread) / (float)RAND_MAX);
-}
-
 /* Virtual gyro */
 
 struct virtualgyro_global *vgs;				/* Global runtime stuff. */
@@ -145,6 +131,7 @@ void virtualgyro_configure(struct virtualgyro *g, float dT, float tau, float R, 
 
 #if defined(MEASURE_ACTUAL_MSE)
 	g->p_post = mse_create((int)((float)MSE_WINDOW_MS / (1000.0f * dT) + 0.5f));
+	g->i_cov = mse_create((int)((float)MSE_WINDOW_MS / (1000.0f * dT) + 0.5f));
 #else
 	g->p_tau = g->tau * SIMPLE_COV_TAU_SCALE;
 	g->p_post = 0.25f;
@@ -208,12 +195,22 @@ float virtualgyro_convolve_predict(struct virtualgyro *g, float actuators[10])
 }
 */
 
-float virtualgyro_update_biased(struct virtualgyro *restrict g, float rate, float a, float armed, bool yaw)
+bool virtualgyro_enable_auto_r(struct virtualgyro *restrict g, float throttle)
+{
+	if (!g->auto_r) {
+		if (throttle > 0.25f) {
+			g->auto_r_armcnt++;
+			if (g->auto_r_armcnt > (int)(1.0f / g->dT))
+				g->auto_r = true;
+		}
+	}
+	return g->auto_r;
+}
+
+float virtualgyro_update_biased(struct virtualgyro *restrict g, float rate, float a, float throttle, float armed, bool yaw)
 {
 	if (!g)
 		return rate;
-
-	rate += noise(g->dT);
 
 	float torque = g->torque * a;
 	//float torque = g->torque * a;
@@ -247,7 +244,7 @@ float virtualgyro_update_biased(struct virtualgyro *restrict g, float rate, floa
 
 	float innov = rate - g->xhat_minus;
 
-	float innov_cov = g->P[0][0] + g->R;
+	float innov_cov = prio[0][0] + g->R;
 
 	float K[2];
 
@@ -278,17 +275,8 @@ float virtualgyro_update_biased(struct virtualgyro *restrict g, float rate, floa
 	g->p_post = g->p_post + (g->dT / (g->p_tau + g->dT)) * (g->residual * g->residual - g->p_post);
 #endif
 
-#if defined(AUTO_SENSOR_NOISE)
-#if defined(AUTO_NOISE_USE_TAU)
-	float rr = g->residual * g->residual + prio[0][0];
-	g->R = g->R + (g->dT/(g->dT+g->tau)) * (rr - g->R);
-#else
-	g->R = AUTO_NOISE_ALPHA * g->R + (1 - AUTO_NOISE_ALPHA) * (g->residual * g->residual + prio[0][0]);
-#endif
-	if (g->R < 1) g->R = 1;
-#else
 	/* Try to maintain Kalman gain below 0.25 by adapting R. */
-	if (torque < 5000.0f*g->dT && g->xhat < 120.0f) {
+	if (virtualgyro_enable_auto_r(g, throttle) && torque < 5000.0f*g->dT && g->xhat < 120.0f) {
 		// Only do this during "small" rotational speeds .
 		if (g->kj > 0.25f) {
 			g->R += 0.07f;
@@ -298,7 +286,6 @@ float virtualgyro_update_biased(struct virtualgyro *restrict g, float rate, floa
 		if (g->R < 10.0f) g->R = 10.0f;
 		else if (g->R > 250.0f) g->R = 250.0f;
 	}
-#endif
 
 #if defined(AUTO_PROCESS_NOISE)
 	/* Do state covariance update.

@@ -10,9 +10,6 @@
 /* Uses mean squared error to measure covariance, instead of IIR with time constant. */
 #define MEASURE_ACTUAL_MSE
 
-/* Automatic sensor noise as per Arvix paper 1702.00884, instead of Kalman gain based ramping. */
-#define AUTO_SENSOR_NOISE
-
 /* Automatic process noise as per Arvix paper 1702.00884 */
 #define AUTO_PROCESS_NOISE
 
@@ -29,9 +26,11 @@ struct virtualgyro {
 	float p_prio;			/* A priori covariance. Not needed, only for diagnostics. */
 #if defined(MEASURE_ACTUAL_MSE)
 	struct mse *p_post;		/* A posteriori covariance based on moving window MSE. */
+	struct mse *i_cov;
 #else
 	float p_tau;			/* Forgetting factor. */
 	float p_post;			/* Simple posteriori covariance. */
+	float i_cov;
 #endif
 
 	float P[2][2];			/* Covariance matrix */
@@ -49,6 +48,10 @@ struct virtualgyro {
 	float kj;				/* Kalman gain. Not needed, only for diagnostics. */
 
 	float auto_noise_alpha; /* */
+
+	bool auto_r;
+	int auto_r_armcnt;
+	float auto_r_thrmin;
 
 	/* Axis actuator modeling state. */
 
@@ -71,7 +74,7 @@ struct virtualgyro *virtualgyro_create();
 void virtualgyro_configure(struct virtualgyro *g, float dT, float tau, float R, float Q);
 void virtualgyro_set_model(struct virtualgyro *g, float beta);
 // float virtualgyro_update(struct virtualgyro *g, float xj, float a, float actuators[10]);
-float virtualgyro_update_biased(struct virtualgyro *g, float xj, float a, float armed, bool yaw);
+float virtualgyro_update_biased(struct virtualgyro *g, float xj, float a, float throttle, float armed, bool yaw);
 float virtualgyro_get_value(struct virtualgyro *g);
 float virtualgyro_get_gain(struct virtualgyro *g);
 float virtualgyro_get_autoR(struct virtualgyro *g);

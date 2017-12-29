@@ -679,7 +679,7 @@ static void stabilizationTask(void* parameters)
 			float *a = &d.Roll;
 
 			for (int i = 0; i < 3; i++) {
-				gyro_filtered[i] = virtualgyro_update_biased(vg[i], gyro_data[i], a[i], fs.Armed == FLIGHTSTATUS_ARMED_ARMED, i == YAW);
+				gyro_filtered[i] = virtualgyro_update_biased(vg[i], gyro_data[i], a[i], actuatorDesired.Thrust, fs.Armed == FLIGHTSTATUS_ARMED_ARMED, i == YAW);
 
 				vs.Gain[i] = virtualgyro_get_gain(vg[i]);
 				vs.Covariance[i] = virtualgyro_get_cov(vg[i]);
