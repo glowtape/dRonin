@@ -60,12 +60,22 @@
 #include "manualcontrolcommand.h"
 #include "vbarsettings.h"
 
+#include "actuatordesired.h"
+#include "mixersettings.h"
+#include "actuatorcommand.h"
+#include "flightstatus.h"
+
+#include "virtualgyrosettings.h"
+#include "virtualgyrostatus.h"
+
+
 // Math libraries
 #include "coordinate_conversions.h"
 #include "physical_constants.h"
 #include "pid.h"
 #include "misc_math.h"
 #include "smoothcontrol.h"
+#include "virtualgyro.h"
 
 // Sensors subsystem which runs in this task
 #include "sensors.h"
@@ -150,11 +160,23 @@ static volatile bool settings_flag = true;
 static volatile bool flightStatusUpdated = true;
 static volatile bool systemSettingsUpdated = true;
 
+static volatile bool virtualgyro_settings_updated = true;
+static volatile bool virtualgyro_mixer_updated = true;
+
+static bool virtualgyro_enabled = false;
+static bool virtualgyro_bypasslpf = true;
+static struct virtualgyro *vg[3];
+static uint16_t virtualgyro_actuator_bitmap = 0;
+
 // Private functions
 static void stabilizationTask(void* parameters);
 static void zero_pids(void);
 static void calculate_pids(float dT);
 static void update_settings(float dT);
+
+static void virtualgyro_settings_update();
+static void virtualgyro_mixer_update();
+
 
 #ifndef NO_CONTROL_DEADBANDS
 #define get_deadband(axis) (deadbands ? (deadbands + axis) : NULL)
@@ -207,7 +229,9 @@ int32_t StabilizationInitialize()
 		|| SubTrimInitialize() == -1
 		|| SubTrimSettingsInitialize() == -1
 		|| ManualControlCommandInitialize() == -1
-		|| VbarSettingsInitialize() == -1) {
+		|| VbarSettingsInitialize() == -1 \
+		|| VirtualGyroSettingsInitialize() == -1 \
+		|| VirtualGyroStatusInitialize() == -1) {
 		return -1;
 	}
 
@@ -223,6 +247,8 @@ int32_t StabilizationInitialize()
 	if (sensors_init() != 0) {
 		return -1;
 	}
+
+	RateDesiredInitialize();
 
 	return 0;
 }
@@ -406,6 +432,8 @@ static void stabilizationTask(void* parameters)
 
 	smoothcontrol_initialize(&rc_smoothing);
 	ManualControlCommandConnectCallbackCtx(UAVObjCbSetFlag, smoothcontrol_get_ringer(rc_smoothing));
+	VirtualGyroSettingsConnectCallbackCtx(UAVObjCbSetFlag, &virtualgyro_settings_updated);
+	MixerSettingsConnectCallbackCtx(UAVObjCbSetFlag, &virtualgyro_mixer_updated);
 
 	uint32_t iteration = 0;
 	float dT_measured = 0;
@@ -472,6 +500,12 @@ static void stabilizationTask(void* parameters)
 			}
 
 			settings_flag = false;
+		}
+		if (virtualgyro_settings_updated) {
+			virtualgyro_settings_update();
+		}
+		if (virtualgyro_mixer_updated) {
+			virtualgyro_mixer_update();
 		}
 
 		// Wait until the AttitudeRaw object is updated, if a timeout then go to failsafe
@@ -619,7 +653,52 @@ static void stabilizationTask(void* parameters)
 				&attitudeActual,
 				local_attitude_error, &horizon_rate_fraction);
 
-		float *gyro_filtered = &gyrosData.x;
+		float *gyro_data = &gyrosData.x;
+		float gyro_filtered[3];
+
+		if (virtualgyro_enabled) {
+			VirtualGyroStatusData vs;
+	/*
+			ActuatorCommandData c;
+			ActuatorCommandGet(&c);
+			float *act = &c.Channel[0];
+			float foo[10];
+
+			for (int i = 0; i < 10; i++) {
+				if (virtualgyro_actuator_bitmap & (1<<i))
+					foo[i] = act[i];
+				else
+					foo[i] = 0;
+			}
+	*/
+			FlightStatusData fs;
+			FlightStatusGet(&fs);
+
+			ActuatorDesiredData d;
+			ActuatorDesiredGet(&d);
+			float *a = &d.Roll;
+
+			for (int i = 0; i < 3; i++) {
+				gyro_filtered[i] = virtualgyro_update_biased(vg[i], gyro_data[i], a[i], fs.Armed == FLIGHTSTATUS_ARMED_ARMED, i == YAW);
+
+				vs.Gain[i] = virtualgyro_get_gain(vg[i]);
+				vs.Covariance[i] = virtualgyro_get_cov(vg[i]);
+				vs.R[i] = virtualgyro_get_autoR(vg[i]);
+			}
+
+			VirtualGyroStatusSet(&vs);
+
+			RateDesiredData rd;
+			rd.Roll = gyro_filtered[0];
+			rd.Pitch = gyro_filtered[1];
+			rd.Yaw = gyro_filtered[2];
+
+			RateDesiredSet(&rd);
+		} else {
+			gyro_filtered[0] = gyro_data[0];
+			gyro_filtered[1] = gyro_data[1];
+			gyro_filtered[2] = gyro_data[2];
+		}
 
 		/* Maintain a second-order, lower cutof freq variant for
 		 * dynamic flight modes.
@@ -1283,3 +1362,47 @@ static void update_settings(float dT)
  * @}
  * @}
  */
+
+static void virtualgyro_settings_update()
+{
+	virtualgyro_settings_updated = false;
+
+	VirtualGyroSettingsData vgs;
+	VirtualGyroSettingsGet(&vgs);
+
+	if (vgs.Enable) {
+		float gyro_dT = 1.0f / (float)PIOS_SENSORS_GetSampleRate(PIOS_SENSOR_GYRO);
+		for (int i = 0; i < 3; i++) {
+			if (!vg[i]) {
+				vg[i] = virtualgyro_create();
+			}
+			virtualgyro_configure(vg[i], gyro_dT, vgs.Tau[i], vgs.R, vgs.Q);
+			virtualgyro_set_model(vg[i], vgs.Beta[i]);
+		}
+		virtualgyro_enabled = true;
+		virtualgyro_bypasslpf = vgs.BypassLPF > 0;
+	} else {
+		virtualgyro_enabled = false;
+	}
+}
+
+static void virtualgyro_mixer_update()
+{
+	virtualgyro_mixer_updated = false;
+
+	MixerSettingsData ms;
+	MixerSettingsGet(&ms);
+
+	virtualgyro_actuator_bitmap = 0;
+
+	virtualgyro_actuator_bitmap |= ms.Mixer1Type == MIXERSETTINGS_MIXER1TYPE_MOTOR ? 1 : 0;
+	virtualgyro_actuator_bitmap |= ms.Mixer2Type == MIXERSETTINGS_MIXER2TYPE_MOTOR ? 1<<1 : 0;
+	virtualgyro_actuator_bitmap |= ms.Mixer3Type == MIXERSETTINGS_MIXER3TYPE_MOTOR ? 1<<2 : 0;
+	virtualgyro_actuator_bitmap |= ms.Mixer4Type == MIXERSETTINGS_MIXER4TYPE_MOTOR ? 1<<3 : 0;
+	virtualgyro_actuator_bitmap |= ms.Mixer5Type == MIXERSETTINGS_MIXER5TYPE_MOTOR ? 1<<4 : 0;
+	virtualgyro_actuator_bitmap |= ms.Mixer6Type == MIXERSETTINGS_MIXER6TYPE_MOTOR ? 1<<5 : 0;
+	virtualgyro_actuator_bitmap |= ms.Mixer7Type == MIXERSETTINGS_MIXER7TYPE_MOTOR ? 1<<6 : 0;
+	virtualgyro_actuator_bitmap |= ms.Mixer8Type == MIXERSETTINGS_MIXER8TYPE_MOTOR ? 1<<7 : 0;
+	virtualgyro_actuator_bitmap |= ms.Mixer9Type == MIXERSETTINGS_MIXER9TYPE_MOTOR ? 1<<8 : 0;
+	virtualgyro_actuator_bitmap |= ms.Mixer10Type == MIXERSETTINGS_MIXER10TYPE_MOTOR ? 1<<9 : 0;
+}

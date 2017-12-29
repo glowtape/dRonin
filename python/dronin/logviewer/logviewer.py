@@ -102,6 +102,31 @@ def plot_vs_time(obj_name, fields):
 
     return add_plot_area(data_series, dock_name, left_axis_label, legend=legend)
 
+def plot_vs_time2(obj_name, fields, obj_name2, fields2):
+    if not isinstance(fields, list):
+        fields = [fields]
+
+    if len(fields) > 1:
+        left_axis_label = '%s<br>&nbsp;<br>&nbsp;' % (obj_name)
+        legend = True
+    else:
+        left_axis_label = '%s<br>%s<br>%s' % (obj_name, fields[0], objtyps[obj_name]._units[fields[0].split(':')[0]])
+        legend = False
+
+    data_series = {}
+    for f in fields:
+        data_series[obj_name + '.' + f] = get_data_series(obj_name, ['time', f])
+
+    for g in fields2:
+    	data_series[obj_name2 + '.' + g] = get_data_series(obj_name2, ['time', g])
+
+    global win_num
+
+    win_num += 1
+    dock_name = "TimeSeries%d" % (win_num)
+
+    return add_plot_area(data_series, dock_name, left_axis_label, legend=legend)
+
 def clear_plots(skip=None):
     containers, docks = area.findAll()
 
@@ -221,6 +246,7 @@ def handle_open(ignored=False, fname=None):
 	plot_vs_time('VirtualGyroStatus', ['Gain:0', 'Gain:1', 'Gain:2'])
 	plot_vs_time('VirtualGyroStatus', ['Covariance:0', 'Covariance:1', 'Covariance:2'])
 	plot_vs_time('VirtualGyroStatus', ['R:0', 'R:1', 'R:2'])
+	plot_vs_time2('Gyros', ['x', 'y'], 'RateDesired', ['Roll', 'Pitch'])
 
         objtyps = { k:v for k,v in objtyps.items() if v in t.last_values }
 

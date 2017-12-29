@@ -68,6 +68,9 @@
 #include "waypointactive.h"
 #include "virtualgyrostatus.h"
 
+#include "gyrosbias.h"
+#include "ratedesired.h"
+
 #include "pios_bl_helper.h"
 #include "pios_streamfs_priv.h"
 
@@ -653,11 +656,19 @@ static void register_default_profile()
 static void lean_profile()
 {
 	// For the default profile, we limit things to 100Hz (for now)
-	uint16_t min_period = MAX(get_minimum_logging_period(), 10);
+	uint16_t min_period = MAX(get_minimum_logging_period(), 1);
 
 	UAVObjConnectCallback(GyrosHandle(), obj_updated_callback, NULL, EV_UPDATED | EV_UNPACKED);
+	if (RateDesiredHandle())
+		UAVObjConnectCallback(RateDesiredHandle(), obj_updated_callback, NULL, EV_UPDATED | EV_UNPACKED);
+//	UAVObjConnectCallbackThrottled(ActuatorCommandHandle(), obj_updated_callback, NULL, EV_UPDATED | EV_UNPACKED, min_period * 3);
+
 	if (VirtualGyroStatusHandle()) {
-		UAVObjConnectCallbackThrottled(VirtualGyroStatusHandle(), obj_updated_callback, NULL, EV_UPDATED | EV_UNPACKED, 4 * min_period);
+		UAVObjConnectCallbackThrottled(VirtualGyroStatusHandle(), obj_updated_callback, NULL, EV_UPDATED | EV_UNPACKED, 3 * min_period);
+	}
+
+	if (GyrosBiasHandle()) {
+		UAVObjConnectCallbackThrottled(GyrosBiasHandle(), obj_updated_callback, NULL, EV_UPDATED | EV_UNPACKED, 10 * min_period);
 	}
 }
 
