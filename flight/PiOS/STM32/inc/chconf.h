@@ -504,8 +504,6 @@
  */
 #define CH_CFG_SYSTEM_TICK_HOOK() {                                         \
   /* System tick event code here.*/                                         \
-  extern void system_tick_led();\
-  system_tick_led();\
 }
 
 /**
@@ -531,6 +529,8 @@
 /*===========================================================================*/
 /* Port-specific settings (override port settings defaulted in chcore.h).    */
 /*===========================================================================*/
+
+#define CORTEX_USE_FPU        TRUE
 
 #endif  /* CHCONF_H */
 

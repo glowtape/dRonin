@@ -15,7 +15,7 @@ include $(CHIBIOS)/os/common/startup/ARMCMx/compilers/GCC/mk/startup_stm32f4xx.m
 include $(CHIBIOS)/os/hal/hal.mk
 include $(CHIBIOS)/os/hal/osal/rt/osal.mk
 include $(CHIBIOS)/os/rt/rt.mk
-include $(CHIBIOS)/os/common/startup/ARMCMx/compilers/GCC/rules.mk
+# include $(CHIBIOS)/os/common/startup/ARMCMx/compilers/GCC/rules.mk
 
 SRC += $(PLATFORMSRC)
 SRC += $(HALSRC)
