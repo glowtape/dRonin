@@ -305,21 +305,21 @@ static void calculate_attitude_errors(uint8_t *axis_mode, float *raw_input,
 
 	if (axis_mode[ROLL] == STABILIZATIONDESIRED_STABILIZATIONMODE_HORIZON) {
 		trimmed_setpoint[ROLL] = bound_min_max(
-				raw_input[ROLL] * settings.RollMax + subTrim.Roll,
+				raw_input[ROLL] * settings.MaxLevelAngle[ROLL] + subTrim.Roll,
 				-settings.RollMax + subTrim.Roll,
 				settings.RollMax + subTrim.Roll);
 		*horizon_rate_fraction = fabsf(raw_input[ROLL]);
 	}
 	if (axis_mode[PITCH] == STABILIZATIONDESIRED_STABILIZATIONMODE_HORIZON) {
 		trimmed_setpoint[PITCH] = bound_min_max(
-				raw_input[PITCH] * settings.PitchMax + subTrim.Pitch,
+				raw_input[PITCH] * settings.MaxLevelAngle[PITCH] + subTrim.Pitch,
 				-settings.PitchMax + subTrim.Pitch,
 				settings.PitchMax + subTrim.Pitch);
 		*horizon_rate_fraction =
 			MAX(*horizon_rate_fraction, fabsf(raw_input[PITCH]));
 	}
 	if (axis_mode[YAW] == STABILIZATIONDESIRED_STABILIZATIONMODE_HORIZON) {
-		trimmed_setpoint[YAW] = raw_input[YAW] * settings.YawMax;
+		trimmed_setpoint[YAW] = raw_input[YAW] * settings.MaxLevelAngle[YAW];
 		*horizon_rate_fraction =
 			MAX(*horizon_rate_fraction, fabsf(raw_input[YAW]));
 	}
