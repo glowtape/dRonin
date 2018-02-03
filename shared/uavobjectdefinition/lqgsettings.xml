@@ -1,0 +1,15 @@
+<xml>
+  <object name="LQGSettings" settings="true" singleinstance="true">
+    <description>Configuration of the LQG rate controller</description>
+    <access gcs="readwrite" flight="readwrite"/>
+    <logging updatemode="manual" period="0"/>
+    <telemetrygcs acked="true" updatemode="onchange" period="0"/>
+    <telemetryflight acked="true" updatemode="onchange" period="0"/>
+    <field defaultvalue="200, 100, 1, 0.000001, 0.000002" name="RTKF" type="float" units="" elementnames="R, YawR, Q1, Q2, Q3">
+        <description>Weights for the Rate-Torque Kalman filter.</description>
+    </field>
+    <field defaultvalue="0.0001, 0.0005, 0, 0.0002, 0.003, 0.3" name="LQR" type="float" units="" elementnames="Q1, Q2, YawBetaOffset, YawQ1, YawQ2, BiasLimit">
+        <description>Weights for the LQ-regulator.</description>
+    </field>
+  </object>
+</xml>
