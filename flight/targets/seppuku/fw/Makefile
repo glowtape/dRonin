@@ -68,6 +68,7 @@ OPTMODULES += OnScreenDisplay
 OPTMODULES += UAVOCrossfireTelemetry
 OPTMODULES += Loadable
 OPTMODULES += Fault
+OPTMODULES += LQGSolver
 
 # Paths
 OPUAVOBJINC = $(OPUAVOBJ)/inc
