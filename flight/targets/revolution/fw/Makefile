@@ -66,6 +66,7 @@ OPTMODULES += Storm32Bgc
 OPTMODULES += CharacterOSD
 OPTMODULES += UAVOCrossfireTelemetry
 OPTMODULES += Loadable
+OPTMODULES += LQGSolver
 
 # Paths
 OPUAVOBJINC = $(OPUAVOBJ)/inc
