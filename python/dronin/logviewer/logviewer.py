@@ -102,6 +102,31 @@ def plot_vs_time(obj_name, fields):
 
     return add_plot_area(data_series, dock_name, left_axis_label, legend=legend)
 
+def plot_vs_time2(obj_name, fields, obj2_name, fields2):
+    if not isinstance(fields, list):
+        fields = [fields]
+
+    if len(fields) > 1:
+        left_axis_label = '%s<br>&nbsp;<br>&nbsp;' % (obj_name)
+        legend = True
+    else:
+        left_axis_label = '%s<br>%s<br>%s' % (obj_name, fields[0], objtyps[obj_name]._units[fields[0].split(':')[0]])
+        legend = False
+
+    data_series = {}
+    for f in fields:
+        data_series[obj_name + '.' + f] = get_data_series(obj_name, ['time', f])
+
+    for f2 in fields2:
+        data_series[obj2_name + '.' + f2] = get_data_series(obj2_name, ['time', f2])
+
+    global win_num
+
+    win_num += 1
+    dock_name = "TimeSeries%d" % (win_num)
+
+    return add_plot_area(data_series, dock_name, left_axis_label, legend=legend)
+
 def clear_plots(skip=None):
     containers, docks = area.findAll()
 
@@ -205,19 +230,24 @@ def handle_open(ignored=False, fname=None):
         global last_plot
         last_plot = None
 
-        thrust_plot = plot_vs_time('StabilizationDesired', 'Thrust')
+#        thrust_plot = plot_vs_time('StabilizationDesired', 'Thrust')
 
         clear_plots(skip=[last_plot])
 
-        for tm,text in event_series:
-            thrust_plot.addLine(x=tm)
+#        for tm,text in event_series:
+#            thrust_plot.addLine(x=tm)
             # label=text, labelOpts={'rotateAxis' : (1,0)} )
 
-        dlg.setValue(925)
-        plot_vs_time('AttitudeActual', ['Yaw', 'Roll', 'Pitch'])
+#        dlg.setValue(925)
+#        plot_vs_time('AttitudeActual', ['Yaw', 'Roll', 'Pitch'])
         dlg.setValue(975)
         plot_vs_time('Gyros', ['x', 'y', 'z'])
-        plot_vs_time('ActuatorCommand', ['Channel:0', 'Channel:1', 'Channel:2', 'Channel:3'])
+
+	plot_vs_time2('Gyros', ['x'], 'RateDesired', ['Roll']);
+	plot_vs_time2('Gyros', ['y'], 'RateDesired', ['Pitch']);
+	plot_vs_time2('Gyros', ['z'], 'RateDesired', ['Yaw']);
+
+#        plot_vs_time('ActuatorCommand', ['Channel:0', 'Channel:1', 'Channel:2', 'Channel:3'])
 
         objtyps = { k:v for k,v in objtyps.items() if v in t.last_values }
 
