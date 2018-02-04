@@ -420,10 +420,10 @@ static void initialize_lqg_controllers(float dT)
 							lqgSettings.RTKF[i == YAW ? LQGSETTINGS_RTKF_YAWR : LQGSETTINGS_RTKF_R],
 							lqgSettings.RTKF[LQGSETTINGS_RTKF_Q1],
 							lqgSettings.RTKF[LQGSETTINGS_RTKF_Q2],
-							lqgSettings.RTKF[LQGSETTINGS_RTKF_Q3]
+							lqgSettings.RTKF[LQGSETTINGS_RTKF_Q3],
+							lqgSettings.RTKF[LQGSETTINGS_RTKF_BIASLIMIT]
 						);
 					lqr_t lqr = lqr_create(beta, tau, dT,
-							lqgSettings.LQR[LQGSETTINGS_LQR_BIASLIMIT],
 							lqgSettings.LQR[i == YAW ? LQGSETTINGS_LQR_YAWQ1 : LQGSETTINGS_LQR_Q1],
 							lqgSettings.LQR[i == YAW ? LQGSETTINGS_LQR_YAWQ2 : LQGSETTINGS_LQR_Q2]
 						);

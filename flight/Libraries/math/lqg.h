@@ -9,12 +9,12 @@ typedef struct lqr_state* lqr_t;
 
 typedef struct lqg_state* lqg_t;
 
-extern rtkf_t rtkf_create(float beta, float tau, float Ts, float R, float Q1, float Q2, float Q3);
+extern rtkf_t rtkf_create(float beta, float tau, float Ts, float R, float Q1, float Q2, float Q3, float biaslim);
 extern void rtkf_stabilize_covariance(rtkf_t rtkf, int iterations);
 extern void rtkf_predict_axis(rtkf_t rtkf, float signal, float input, float Xout[3]);
 extern bool rtkf_is_solved(rtkf_t rtkf);
 
-extern lqr_t lqr_create(float beta, float tau, float Ts, float biaslim, float q1, float q2);
+extern lqr_t lqr_create(float beta, float tau, float Ts, float q1, float q2);
 extern void lqr_update(lqr_t lqr, float q1, float q2);
 extern void lqr_stabilize_covariance(lqr_t lqr, int iterations);
 extern bool lqr_is_solved(lqr_t lqr);

@@ -125,6 +125,8 @@ struct rtkf_state {
 	float R;
 	float X[3];
 
+	float biaslim;
+
 };
 
 /*
@@ -163,6 +165,8 @@ void rtkf_predict_axis(rtkf_t rtkf, float signal, float input, float Xout[3])
 {
 	rtkf_prediction_step(rtkf->A, rtkf->B, rtkf->K, rtkf->X, signal, input);
 
+	rtkf->X2 = bound_sym(rtkf->X2, rtkf->biaslim);
+
 	Xout[0] = rtkf->X0;
 	Xout[1] = rtkf->X1;
 	Xout[2] = rtkf->X2;
@@ -198,7 +202,7 @@ void rtkf_initialize_matrices_int(float A[3][3], float B[3], float beta, float t
 
 	R = 1000 seems a workable value for raw gyro input.
 */
-rtkf_t rtkf_create(float beta, float tau, float Ts, float R, float q1, float q2, float q3)
+rtkf_t rtkf_create(float beta, float tau, float Ts, float R, float q1, float q2, float q3, float biaslim)
 {
 	struct rtkf_state *state = PIOS_malloc_no_dma(sizeof(*state));
 	PIOS_Assert(state);
@@ -209,6 +213,7 @@ rtkf_t rtkf_create(float beta, float tau, float Ts, float R, float q1, float q2,
 	state->Q11 = q2;
 	state->Q22 = q3;
 	state->R = R;
+	state->biaslim = biaslim;
 
 	return state;
 }
@@ -276,8 +281,6 @@ struct lqr_state {
 
 	float beta;
 	float tau;
-
-	float biaslim;
 
 };
 
@@ -360,7 +363,7 @@ void lqr_initialize_matrices_int(float A[2][2], float B[2], float beta, float ta
 
 	Current workable values for 5" miniquads seems to be Q1 = 0.00001, Q2 = 0.00013333.
 */
-lqr_t lqr_create(float beta, float tau, float Ts, float biaslim, float q1, float q2)
+lqr_t lqr_create(float beta, float tau, float Ts, float q1, float q2)
 {
 	struct lqr_state *state = PIOS_malloc_no_dma(sizeof(*state));
 	PIOS_Assert(state);
@@ -372,7 +375,6 @@ lqr_t lqr_create(float beta, float tau, float Ts, float biaslim, float q1, float
 
 	state->beta = beta;
 	state->tau = tau;
-	state->biaslim = biaslim;
 
 	return state;
 }
@@ -423,9 +425,8 @@ float lqg_controller(lqg_t lqg, float signal, float setpoint)
 	rtkf_predict_axis(rtkf, signal, lqr->u, x_est);
 
 	float xr0 = x_est[0] - setpoint;
-	float bias = bound_sym(x_est[2], lqr->biaslim);
 
-	float u = bias - lqr->K0 * xr0 - lqr->K1 * x_est[1];
+	float u = x_est[2] - lqr->K0 * xr0 - lqr->K1 * x_est[1];
 	if (u < -1) u = -1;
 	else if (u > 1) u = 1;
 
