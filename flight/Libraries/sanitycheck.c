@@ -40,6 +40,7 @@
 #include "stateestimation.h"
 #include "systemalarms.h"
 #include "systemsettings.h"
+#include "systemident.h"
 
 #include "pios_sensors.h"
 
@@ -119,9 +120,20 @@ int32_t configuration_check()
 			case MANUALCONTROLSETTINGS_FLIGHTMODEPOSITION_AXISLOCK:
 			case MANUALCONTROLSETTINGS_FLIGHTMODEPOSITION_VIRTUALBAR:
 			case MANUALCONTROLSETTINGS_FLIGHTMODEPOSITION_FAILSAFE:
+				// always ok
+				break;
 			case MANUALCONTROLSETTINGS_FLIGHTMODEPOSITION_LQG:
 			case MANUALCONTROLSETTINGS_FLIGHTMODEPOSITION_ATTITUDELQG:
-				// always ok
+				if (SystemIdentHandle()) {
+					SystemIdentData si;
+					SystemIdentGet(&si);
+
+					if (si.Beta[SYSTEMIDENT_BETA_ROLL] < 6 || si.Tau[SYSTEMIDENT_TAU_ROLL] < 0.001f ||
+						si.Beta[SYSTEMIDENT_BETA_PITCH] < 6 || si.Tau[SYSTEMIDENT_TAU_PITCH] < 0.001f ||
+						si.Beta[SYSTEMIDENT_BETA_YAW] < 6 || si.Tau[SYSTEMIDENT_TAU_YAW] < 0.001f) {
+						error_code = SYSTEMALARMS_CONFIGERROR_LQG;
+					}
+				}
 				break;
 			case MANUALCONTROLSETTINGS_FLIGHTMODEPOSITION_STABILIZED1:
 				error_code = (error_code == SYSTEMALARMS_CONFIGERROR_NONE) ? check_stabilization_settings(1, multirotor) : error_code;
@@ -373,6 +385,9 @@ void set_config_error(SystemAlarmsConfigErrorOptions error_code)
 	case SYSTEMALARMS_CONFIGERROR_UNDEFINED:
 	case SYSTEMALARMS_CONFIGERROR_UNSAFETOARM:
 		severity = SYSTEMALARMS_ALARM_ERROR;
+		break;
+	case SYSTEMALARMS_CONFIGERROR_LQG:
+		severity = SYSTEMALARMS_ALARM_WARNING;
 		break;
 	}
 
