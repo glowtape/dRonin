@@ -426,11 +426,11 @@ float lqg_controller(lqg_t lqg, float signal, float setpoint)
 
 	float xr0 = x_est[0] - setpoint;
 
-	float u = x_est[2] - lqr->K0 * xr0 - lqr->K1 * x_est[1];
-	if (u < -1) u = -1;
-	else if (u > 1) u = 1;
+	float u = bound_sym(x_est[2] - lqr->K0 * xr0 - lqr->K1 * x_est[1], 1.0f);
 
-	lqr->u = u;
+	/* Don't include bias, but adjust for clipping via bias. Otherwise the estimator
+	   thinks there are demands from the control law, that aren't actually there. */
+	lqr->u = bound_sym(u - x_est[2], 1.0f);
 
 	return u;
 }
