@@ -243,9 +243,9 @@ def handle_open(ignored=False, fname=None):
         dlg.setValue(975)
         plot_vs_time('Gyros', ['x', 'y', 'z'])
 
-	plot_vs_time2('Gyros', ['x'], 'RateDesired', ['Roll']);
-	plot_vs_time2('Gyros', ['y'], 'RateDesired', ['Pitch']);
-	plot_vs_time2('Gyros', ['z'], 'RateDesired', ['Yaw']);
+        plot_vs_time2('Gyros', ['x'], 'RTKFEstimate', ['Rate:0']);
+        plot_vs_time2('Gyros', ['y'], 'RTKFEstimate', ['Rate:1']);
+        plot_vs_time2('Gyros', ['z'], 'RTKFEstimate', ['Rate:2']);
 
 #        plot_vs_time('ActuatorCommand', ['Channel:0', 'Channel:1', 'Channel:2', 'Channel:3'])
 
