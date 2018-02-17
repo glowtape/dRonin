@@ -158,7 +158,10 @@ void rtkf_prediction_step(float A[3][3], float B[3], float K[3], float X[3], flo
 
 	X0 = nX0;
 	X1 = nX1;
-	X2 = nX2;
+
+	/* Suppress the bias if we're near the clipping region in control. */
+	float in2 = input*input;
+	X2 = nX2 * bound_min_max(1.0f - in2*in2, 0, 1.0f);
 }
 
 void rtkf_predict_axis(rtkf_t rtkf, float signal, float input, float Xout[3])
