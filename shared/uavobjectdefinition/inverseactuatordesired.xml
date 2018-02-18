@@ -1,0 +1,21 @@
+<xml>
+  <object name="InverseActuatorDesired" settings="false" singleinstance="true">
+    <description>Actuator desired values calculated from inverse mixer.</description>
+    <access gcs="readwrite" flight="readwrite"/>
+    <logging updatemode="manual" period="0"/>
+    <telemetrygcs acked="false" updatemode="manual" period="0"/>
+    <telemetryflight acked="false" updatemode="throttled" period="1000"/>
+    <field defaultvalue="0" elements="1" name="Roll" type="float" units="% / 100">
+      <description/>
+    </field>
+    <field defaultvalue="0" elements="1" name="Pitch" type="float" units="% / 100">
+      <description/>
+    </field>
+    <field defaultvalue="0" elements="1" name="Yaw" type="float" units="% / 100">
+      <description/>
+    </field>
+    <field defaultvalue="0" elements="1" name="Thrust" type="float" units="% / 100">
+      <description/>
+    </field>
+  </object>
+</xml>

@@ -52,6 +52,7 @@
 #include "pios_thread.h"
 #include "pios_queue.h"
 #include "misc_math.h"
+#include "inverseactuatordesired.h"
 
 // Private constants
 #define MAX_QUEUE_SIZE 2
@@ -96,7 +97,10 @@ static MixerSettingsMixer1TypeOptions types_mixer[MAX_MIX_ACTUATORS];
  */
 
 static float motor_mixer[MAX_MIX_ACTUATORS * MIXERSETTINGS_MIXER1VECTOR_NUMELEM];
+#if defined(PIOS_INCLUDE_LQG)
 static float motor_mixer_inv[MAX_MIX_ACTUATORS * MIXERSETTINGS_MIXER1VECTOR_NUMELEM];
+static bool inverse_mixer_computed = false;
+#endif
 
 /* These are various settings objects used throughout the actuator code */
 static ActuatorSettingsData actuatorSettings;
@@ -242,6 +246,10 @@ int32_t ActuatorInitialize()
 
 	// Primary output of this module
 	if (ActuatorCommandInitialize() == -1) {
+		return -1;
+	}
+
+	if (InverseActuatorDesiredInitialize() == -1) {
 		return -1;
 	}
 
@@ -755,13 +763,14 @@ static void actuator_task(void* parameters)
 
 			compute_mixer();
 
+#if defined(PIOS_INCLUDE_LQG)
 			/* If we can't calculate a proper inverse mixer,
 			 * set failsafe.
 			 */
 			if (compute_inverse_mixer()) {
-				set_failsafe();
-				continue;
+				inverse_mixer_computed = true;
 			}
+#endif
 
 			MixerSettingsThrottleCurve2Get(curve2);
 			MixerSettingsCurve2SourceGet(&curve2_src);
@@ -866,6 +875,30 @@ static void actuator_task(void* parameters)
 		post_process_scale_and_commit(motor_vect, desired_vect,
 				dT, armed, spin_while_armed, stabilize_now,
 				&maxpoweradd_bucket);
+
+#if defined(PIOS_INCLUDE_LQG)
+		float inv_mix[MIXERSETTINGS_MIXER1VECTOR_NUMELEM];
+
+		/* Calculate inverse mix. */
+		InverseActuatorDesiredData inv;
+		if (inverse_mixer_computed) {
+			matrix_mul_check(motor_mixer_inv, motor_vect, inv_mix,
+			MIXERSETTINGS_MIXER1VECTOR_NUMELEM,
+			MAX_MIX_ACTUATORS,
+			1);
+
+			inv.Roll = inv_mix[MIXERSETTINGS_MIXER1VECTOR_ROLL];
+			inv.Pitch = inv_mix[MIXERSETTINGS_MIXER1VECTOR_PITCH];
+			inv.Yaw = inv_mix[MIXERSETTINGS_MIXER1VECTOR_YAW];
+			inv.Thrust = inv_mix[MIXERSETTINGS_MIXER1VECTOR_THROTTLECURVE1];
+		} else {
+			inv.Roll = NAN;
+			inv.Pitch = NAN;
+			inv.Yaw = NAN;
+			inv.Thrust = NAN;
+		}
+		InverseActuatorDesiredSet(&inv);
+#endif
 
 		/* If we got this far, everything is OK. */
 		AlarmsClear(SYSTEMALARMS_ALARM_ACTUATOR);
