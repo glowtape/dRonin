@@ -28,7 +28,8 @@ extern void lqg_get_axes(lqg_t *axes);
 //extern void lqg_stabilize_lqr_covariances(lqg_t lqg);
 extern float lqg_controller(lqg_t lqg, float signal, float setpoint);
 extern bool lqg_is_solved(lqg_t lqg);
-void lqg_get_estimate(lqg_t lqg, float *rate, float *torque, float *bias);
+extern void lqg_get_estimate(lqg_t lqg, float *rate, float *torque, float *bias);
+extern void lqg_override_u(lqg_t lqg, float u);
 
 extern lqr_t lqg_get_lqr(lqg_t lqg);
 extern rtkf_t lqg_get_rtkf(lqg_t lqg);

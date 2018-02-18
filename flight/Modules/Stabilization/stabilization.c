@@ -61,6 +61,7 @@
 #include "vbarsettings.h"
 #include "lqgsettings.h"
 #include "rtkfestimate.h"
+#include "inverseactuatordesired.h"
 
 // Math libraries
 #include "coordinate_conversions.h"
@@ -219,6 +220,7 @@ int32_t StabilizationInitialize()
 #if defined(PIOS_INCLUDE_LQG)
 	if (LQGSettingsInitialize() == -1 ||
 		SystemIdentInitialize() == -1 ||
+		InverseActuatorDesiredInitialize() == -1 ||
 		RTKFEstimateInitialize() == -1) {
 		return -1;
 	}
@@ -700,6 +702,12 @@ static void stabilizationTask(void* parameters)
 
 		uint16_t max_safe_rate = PIOS_SENSORS_GetMaxGyro() * 0.9f;
 
+#if defined(PIOS_INCLUDE_LQG)
+		InverseActuatorDesiredData inv_act;
+		InverseActuatorDesiredGet(&inv_act);
+		float *inv_u = &inv_act.Roll;
+#endif
+
 		//Run the selected stabilization algorithm on each axis:
 		for(uint8_t i=0; i< MAX_AXES; i++)
 		{
@@ -728,6 +736,8 @@ static void stabilizationTask(void* parameters)
 						}
 						/* Store to rate desired variable for storing to UAVO */
 						rateDesiredAxis[i] = bound_sym(raw_input[i], settings.ManualRate[i]);
+
+						lqg_override_u(lqg[i], inv_u[i]);
 
 						/* Compute the inner loop */
 						actuatorDesiredAxis[i] = lqg_controller(lqg[i], gyro_filtered[i], rateDesiredAxis[i]);
@@ -833,6 +843,8 @@ static void stabilizationTask(void* parameters)
 						// Compute the outer loop
 						rateDesiredAxis[i] = pid_apply(&pids[PID_GROUP_ATT + i], local_attitude_error[i]);
 						rateDesiredAxis[i] = bound_sym(rateDesiredAxis[i], settings.MaximumRate[i]);
+
+						lqg_override_u(lqg[i], inv_u[i]);
 
 						/* Compute the inner loop */
 						actuatorDesiredAxis[i] = lqg_controller(lqg[i], gyro_filtered[i], rateDesiredAxis[i]);

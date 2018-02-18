@@ -505,3 +505,13 @@ lqr_t lqg_get_lqr(lqg_t lqg)
 {
 	return lqg ? lqg->lqr : NULL;
 }
+
+void lqg_override_u(lqg_t lqg, float u)
+{
+	if (u != u) return;
+
+	if (lqg) {
+		lqr_t lqr = lqg->lqr;
+		lqr->u = u;
+	}
+}
