@@ -513,3 +513,8 @@ void lqg_run_covariance(lqg_t lqg, int iter)
 	if (!lqr_is_solved(lqr))
 		lqr_stabilize_covariance(lqr, iter);
 }
+
+/**
+ * @}
+ * @}
+ */

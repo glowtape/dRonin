@@ -62,3 +62,8 @@ extern void lqg_set_x0(lqg_t lqq, float x0);
 void lqg_get_rtkf_state(lqg_t lqg, float *rate, float *torque, float *bias);
 
 #endif // LQG_H
+
+/**
+ * @}
+ * @}
+ */
