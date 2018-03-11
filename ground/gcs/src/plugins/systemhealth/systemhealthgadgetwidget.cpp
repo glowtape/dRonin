@@ -327,7 +327,7 @@ QString SystemHealthGadgetWidget::getAlarmDescriptionFileName(const QString item
             break;
         case SystemAlarms::CONFIGERROR_LQG:
             alarmDescriptionFileName =
-                QString(":/systemhealth/html/SystemConfiguration-Warning-LQG.html");
+                QString(":/systemhealth/html/SystemConfiguration-Error-LQG.html");
             break;
         case SystemAlarms::CONFIGERROR_UNDEFINED:
             alarmDescriptionFileName =
