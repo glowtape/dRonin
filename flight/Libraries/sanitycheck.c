@@ -252,6 +252,13 @@ static int32_t check_stabilization_settings(int index, bool multirotor,
 				(!PIOS_Modules_IsEnabled(PIOS_MODULE_AUTOTUNE))) {
 			return SYSTEMALARMS_CONFIGERROR_AUTOTUNE;
 		}
+
+		/* Throw an error if LQG modes are configured without system identification data. */
+		if (modes[i] == MANUALCONTROLSETTINGS_STABILIZATION1SETTINGS_LQG ||
+			modes[i] == MANUALCONTROLSETTINGS_STABILIZATION1SETTINGS_ATTITUDELQG) {
+			if (!lqg_sysident_check())
+				return SYSTEMALARMS_CONFIGERROR_LQG;
+		}
 	}
 
 	// POI mode is only valid for YAW in the case it is enabled and camera stab is running
