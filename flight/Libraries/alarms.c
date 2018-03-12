@@ -272,7 +272,7 @@ static const char alarm_names[][10] = {
 // If someone adds a new alarm, we'd like it added to the array above.
 DONT_BUILD_IF(NELEMENTS(alarm_names) != SYSTEMALARMS_ALARM_NUMELEM, AlarmArrayMismatch);
 
-static const char config_error_names[][16] = {
+static const char config_error_names[][15] = {
 	[SYSTEMALARMS_CONFIGERROR_STABILIZATION] = "CFG:STAB",
 	[SYSTEMALARMS_CONFIGERROR_MULTIROTOR] = "CFG:MULTIROTOR",
 	[SYSTEMALARMS_CONFIGERROR_AUTOTUNE] = "CFG:AUTOTUNE",
