@@ -242,6 +242,14 @@ rtkf_t rtkf_create(float beta, float tau, float Ts, float R, float q1, float q2,
 	return state;
 }
 
+void rtkf_augment_ltr(rtkf_t rtkf, float K[2])
+{
+	rtkf->A00 -= rtkf->B0*K0;
+	rtkf->A01 -= rtkf->B0*K1;
+	rtkf->A10 -= rtkf->B1*K0;
+	rtkf->A11 -= rtkf->B1*K1;
+}
+
 bool rtkf_is_solved(rtkf_t rtkf)
 {
 	return rtkf->solver_iterations >= RTKF_SOLUTION_LIMIT;
@@ -424,6 +432,8 @@ struct lqg_state {
 	struct lqr_state *lqr;
 	struct rtkf_state *rtkf;
 
+	bool do_ltr;
+
 };
 
 /*
@@ -469,6 +479,8 @@ lqg_t lqg_create(rtkf_t rtkf, lqr_t lqr)
 	state->rtkf = rtkf;
 	state->lqr = lqr;
 
+	state->do_ltr = true;
+
 	return state;
 }
 
@@ -508,10 +520,15 @@ void lqg_run_covariance(lqg_t lqg, int iter)
 	PIOS_Assert(rtkf);
 	PIOS_Assert(lqr);
 
-	if (!rtkf_is_solved(rtkf))
-		rtkf_stabilize_covariance(rtkf, iter);
 	if (!lqr_is_solved(lqr))
 		lqr_stabilize_covariance(lqr, iter);
+	else if (!rtkf_is_solved(rtkf)) {
+		if (lqg->do_ltr) {
+			rtkf_augment_ltr(rtkf, lqr->K);
+			lqg->do_ltr = false;
+		}
+		rtkf_stabilize_covariance(rtkf, iter);
+	}
 }
 
 /**
