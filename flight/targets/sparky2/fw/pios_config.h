@@ -34,7 +34,7 @@
 
 /* Major features */
 #define PIOS_INCLUDE_FLASH_JEDEC
-#define PIOS_INCLUDE_LQG
+#define STABILIZATION_LQG
 
 /* Enable/Disable PiOS Modules */
 #define PIOS_INCLUDE_I2C
