@@ -169,7 +169,7 @@ static float altitude_hold_maxdescentrate;
 
 static struct pid pids[PID_MAX];
 static smoothcontrol_state rc_smoothing;
-#if defined(PIOS_INCLUDE_LQG)
+#if defined(STABILIZATION_LQG)
 static lqg_t lqg[MAX_AXES];
 #endif
 
@@ -238,7 +238,7 @@ int32_t StabilizationInitialize()
 		return -1;
 	}
 
-#if defined(PIOS_INCLUDE_LQG)
+#if defined(STABILIZATION_LQG)
 	if (LQGSettingsInitialize() == -1 ||
 		SystemIdentInitialize() == -1 ||
 		RTKFEstimateInitialize() == -1 ||
@@ -423,7 +423,7 @@ static void calculate_attitude_errors(uint8_t *axis_mode, float *raw_input,
 	local_attitude_error[YAW] = circular_modulus_deg(local_attitude_error[YAW]);
 }
 
-#if defined(PIOS_INCLUDE_LQG)
+#if defined(STABILIZATION_LQG)
 static void initialize_lqg_controllers(float dT)
 {
 	if (SystemIdentHandle()) {
@@ -841,7 +841,7 @@ static void stabilizationTask(void* parameters)
 		}
 
 		if (lqgsettings_updated) {
-#if defined(PIOS_INCLUDE_LQG)
+#if defined(STABILIZATION_LQG)
 			/* Set up LQG controllers. */
 			initialize_lqg_controllers(dT_expected);
 #endif
@@ -938,7 +938,7 @@ static void stabilizationTask(void* parameters)
 
 		uint16_t max_safe_rate = PIOS_SENSORS_GetMaxGyro() * 0.9f;
 
-#if defined(PIOS_INCLUDE_LQG)
+#if defined(STABILIZATION_LQG)
 		bool lqg_in_use = false;
 
 		for (int i = 0; i < MAX_AXES; i++) {
@@ -964,7 +964,7 @@ static void stabilizationTask(void* parameters)
 					break;
 
 				case STABILIZATIONDESIRED_STABILIZATIONMODE_LQG:
-#if defined(PIOS_INCLUDE_LQG)
+#if defined(STABILIZATION_LQG)
 					if (lqg[i] && lqg_is_solved(lqg[i])) {
 						if (reinit) {
 							lqg_set_x0(lqg[i], gyro_filtered[i]);
@@ -1072,7 +1072,7 @@ static void stabilizationTask(void* parameters)
 					break;
 
 				case STABILIZATIONDESIRED_STABILIZATIONMODE_ATTITUDELQG:
-#if defined(PIOS_INCLUDE_LQG)
+#if defined(STABILIZATION_LQG)
 					if (lqg[i] && lqg_is_solved(lqg[i])) {
 						if (reinit) {
 							pids[PID_GROUP_ATT + i].iAccumulator = 0;
@@ -1430,7 +1430,7 @@ static void stabilizationTask(void* parameters)
 			}
 		}
 
-#if defined(PIOS_INCLUDE_LQG)
+#if defined(STABILIZATION_LQG)
 		/* If there's a LQG controller running, dump the RTKF state for logging. */
 		if (lqg_in_use && (lqg[0] || lqg[1] || lqg[2])) {
 			RTKFEstimateData est = { 0 };
