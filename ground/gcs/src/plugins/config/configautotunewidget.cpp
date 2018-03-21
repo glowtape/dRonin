@@ -450,6 +450,12 @@ void ConfigAutotuneWidget::openAutotuneDialog(bool autoOpened,
                 systemIdentData.Beta[i] = av.beta[i];
             }
 
+            for (int i = 0; i < 6; i++) {
+                /* Don't fuck with the orders in either calculateCrossCoupling or the UAVO.
+                   It'll break everything. */
+                systemIdentData.CrossAxisCouplingMatrix[i] = av.crossaxis[i];
+            }
+
             systemIdent->setData(systemIdentData);
             systemIdent->updated();
 
@@ -987,6 +993,67 @@ float AutotuneBeginningPage::getSampleDelay(int pts,
     return max_idx;
 }
 
+/*
+
+    Calculates the correlates of X, Y, Z, XY, XZ and YZ, then computes a matrix:
+
+    [    1  XY/Y  XZ/Z ]
+    [ XY/X     1  YZ/Z ]
+    [ XZ/X  YZ/Y     1 ]
+
+    Only returns the non-1 terms sequentually in array cc.
+
+*/
+bool AutotuneBeginningPage::calculateCrossCoupling(QVector<float> &X, QVector<float> &Y, QVector<float> &Z, float cc[6])
+{
+    if (!cc || X.size() == 0 || X.size() != Y.size() || Y.size() != Z.size())
+        return false;
+
+    float cX = 0;
+    float cY = 0;
+    float cZ = 0;
+    float cXY = 0;
+    float cXZ = 0;
+    float cYZ = 0;
+
+    for (int i = 0; i < X.size(); i++) {
+        cX += X[i] * X[i];
+        cY += Y[i] * Y[i];
+        cZ += Z[i] * Z[i];
+        cXY += X[i] * Y[i];
+        cXZ += X[i] * Z[i];
+        cYZ += Y[i] * Z[i];
+    }
+
+    printf("cX = %f\n", cX);
+    printf("cY = %f\n", cY);
+    printf("cZ = %f\n", cZ);
+    printf("cXY = %f\n", cXY);
+    printf("cXZ = %f\n", cXZ);
+    printf("cYZ = %f\n", cYZ);
+
+    if (cX < 0.0000001f ||  cY < 0.0000001f || cZ < 0.0000001f)
+        return false;
+
+    cc[0] = cXY / cY;
+    cc[1] = cXZ / cZ;
+    cc[2] = cXY / cX;
+    cc[3] = cYZ / cZ;
+    cc[4] = cXZ / cX;
+    cc[5] = cYZ / cY;
+
+    for (int i = 0; i < 6; i++) {
+        /* If there's more than 33% coupling, this is wrong. */
+        if (fabsf(cc[i]) > 0.33f) {
+            for (int j = 0; j < 6; j++)
+                cc[j] = 0;
+            return false;
+        }
+    }
+
+    return true;
+}
+
 bool AutotuneBeginningPage::processAutotuneData()
 {
     QByteArray &loadedFile = tuneState->data;
@@ -1015,6 +1082,10 @@ bool AutotuneBeginningPage::processAutotuneData()
 
     int pts = flash_data->hdr.wiggle_points;
 
+    QVector<float> derivX(pts);
+    QVector<float> derivY(pts);
+    QVector<float> derivZ(pts);
+
     for (int axis = 0; axis < 3; axis++) {
         QVector<float> gyro_deriv(pts);
         QVector<float> actu_desired(pts);
@@ -1029,6 +1100,24 @@ bool AutotuneBeginningPage::processAutotuneData()
         }
 
         gyro_deriv[0] = flash_data->data[0].y[axis] - flash_data->data[pts - 1].y[axis];
+
+        QVector<float> *outvec = nullptr;
+        switch(axis) {
+            case 0:
+                outvec = &derivX;
+                break;
+            case 1:
+                outvec = &derivY;
+                break;
+            case 2:
+                outvec = &derivZ;
+                break;
+            default:
+                outvec = nullptr;
+                break;
+        }
+        if (outvec != nullptr)
+            qCopy(gyro_deriv.begin(), gyro_deriv.end(), (*outvec).begin());
 
         float sample_tau = getSampleDelay(pts, gyro_deriv, actu_desired,
                 (axis == 2) ? 8 : 4);
@@ -1091,6 +1180,8 @@ bool AutotuneBeginningPage::processAutotuneData()
         tuneState->bias[axis] = bias;
         tuneState->noise[axis] = noise;
     }
+
+    calculateCrossCoupling(derivX, derivY, derivZ, tuneState->crossaxis);
 
     tuneState->valid = true;
 

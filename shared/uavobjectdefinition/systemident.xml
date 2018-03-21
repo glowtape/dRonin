@@ -24,5 +24,16 @@
     <field name="Beta" units="" type="float" elementnames="Roll,Pitch,Yaw" defaultvalue="0">
       <description>Estimated torque per axis.</description>
     </field>
+    <field name="CrossAxisCouplingMatrix" type="float" units="" defaultvalue="0">
+      <description>Stores the cross-axis coupling terms evaluated by autotune. 3x3 matrix, but only contains non-diagonal terms (diagonal is 1).</description>
+      <elementnames>
+        <elementname>XYY</elementname>
+        <elementname>XZZ</elementname>
+        <elementname>XYX</elementname>
+        <elementname>YZZ</elementname>
+        <elementname>XZX</elementname>
+        <elementname>YZY</elementname>
+      </elementnames>
+    </field>
   </object>
 </xml>

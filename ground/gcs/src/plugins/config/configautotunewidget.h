@@ -63,6 +63,9 @@ struct AutotunedValues
     float bias[3];
     float noise[3];
 
+    // Cross-Axis coupling
+    float crossaxis[6];
+
     // Inputs
     float damping;
     float noiseSens;
@@ -136,6 +139,7 @@ private:
         struct at_measurement data[];
     };
 
+    bool calculateCrossCoupling(QVector<float> &X, QVector<float> &Y, QVector<float> &Z, float cc[6]);
     bool processAutotuneData();
     void biquadFilter(float cutoff, int pts, QVector<float> &data);
     float getSampleDelay(int pts, const QVector<float> &delayed,
