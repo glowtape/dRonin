@@ -99,6 +99,7 @@ static int32_t send_data_nonblock(void *ctx, uint8_t *data, int32_t length);
 static uint16_t get_minimum_logging_period();
 static void unregister_object(UAVObjHandle obj);
 static void register_object(UAVObjHandle obj);
+static void register_custom_profile();
 static void register_default_profile();
 static void logAll(UAVObjHandle obj);
 static void logSettings(UAVObjHandle obj);
@@ -341,6 +342,8 @@ static void loggingTask(void *parameters)
 					register_default_profile();
 					break;
 				case LOGGINGSETTINGS_PROFILE_CUSTOM:
+					register_custom_profile();
+					break;
 				case LOGGINGSETTINGS_PROFILE_FULLBORE:
 					UAVObjIterate(&register_object);
 					break;
@@ -582,6 +585,15 @@ static void register_object(UAVObjHandle obj)
 		// log updates throttled
 		UAVObjConnectCallbackThrottled(obj, obj_updated_callback, NULL, EV_UPDATED | EV_UNPACKED, period);
 	}
+}
+
+static void register_custom_profile()
+{
+	uint16_t min_period = MAX(get_minimum_logging_period(), 1);
+	UAVObjConnectCallbackThrottled(GyrosHandle(), obj_updated_callback, NULL, EV_UPDATED | EV_UNPACKED, min_period);
+	UAVObjConnectCallbackThrottled(RTKFEstimateHandle(), obj_updated_callback, NULL, EV_UPDATED | EV_UNPACKED, min_period);
+	UAVObjConnectCallbackThrottled(ActuatorDesiredHandle(), obj_updated_callback, NULL, EV_UPDATED | EV_UNPACKED, min_period);
+	UAVObjConnectCallbackThrottled(StabilizationDesiredHandle(), obj_updated_callback, NULL, EV_UPDATED | EV_UNPACKED, min_period);
 }
 
 /**
