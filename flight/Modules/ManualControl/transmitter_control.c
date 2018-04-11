@@ -6,7 +6,7 @@
  * @{
  *
  * @file       transmitter_control.c
- * @author     dRonin, http://dRonin.org/, Copyright (C) 2015-2016
+ * @author     dRonin, http://dRonin.org/, Copyright (C) 2015-2018
  * @author     Tau Labs, http://taulabs.org, Copyright (C) 2012-2017
  * @author     The OpenPilot Team, http://www.openpilot.org Copyright (C) 2010.
  * @brief      Handles R/C link and flight mode.
@@ -109,7 +109,6 @@ static void set_manual_control_error(SystemAlarmsManualControlOptions errorCode)
 static float scaleChannel(int n, int16_t value);
 static bool validInputRange(int n, uint16_t value, uint16_t offset);
 static uint32_t timeDifferenceMs(uint32_t start_time, uint32_t end_time);
-static void applyDeadband(float *value, float deadband);
 static void resetRcvrActivity(struct rcvr_activity_fsm * fsm);
 static bool updateRcvrActivity(struct rcvr_activity_fsm * fsm);
 static void set_loiter_command(ManualControlCommandData *cmd);
@@ -172,7 +171,7 @@ static float get_thrust_source(ManualControlCommandData *manual_control_command,
 
 	if (thrust_is_bidir) {
 		/* Thrust is bidirectional; apply a deadband and call it good */
-		applyDeadband(&thrust, settings.ThrustDeadband);
+		apply_channel_deadband(&thrust, settings.ThrustDeadband);
 
 		return thrust;
 	}
@@ -192,7 +191,7 @@ static float get_thrust_source(ManualControlCommandData *manual_control_command,
 	/* We want a -1..1 value, but thrust is squished into a 0..1 range. */
 	thrust = thrust * 2.0f - 1.0f;
 
-	applyDeadband(&thrust, settings.ThrustDeadband);
+	apply_channel_deadband(&thrust, settings.ThrustDeadband);
 
 	return thrust;
 }
@@ -493,9 +492,9 @@ int32_t transmitter_control_update()
 
 		// Apply deadband for Roll/Pitch/Yaw stick inputs
 		if (settings.Deadband) {
-			applyDeadband(&cmd.Roll, settings.Deadband);
-			applyDeadband(&cmd.Pitch, settings.Deadband);
-			applyDeadband(&cmd.Yaw, settings.Deadband);
+			apply_channel_deadband(&cmd.Roll, settings.Deadband);
+			apply_channel_deadband(&cmd.Pitch, settings.Deadband);
+			apply_channel_deadband(&cmd.Yaw, settings.Deadband);
 		}
 
 		if(cmd.Channel[MANUALCONTROLSETTINGS_CHANNELGROUPS_COLLECTIVE] != (uint16_t) PIOS_RCVR_INVALID &&
@@ -563,9 +562,7 @@ int32_t transmitter_control_select(bool reset_controller)
 	case FLIGHTSTATUS_FLIGHTMODE_AUTOTUNE:
 	case FLIGHTSTATUS_FLIGHTMODE_LQG:
 	case FLIGHTSTATUS_FLIGHTMODE_LQGLEVELING:
-		update_stabilization_desired(&cmd, &settings);
-		break;
-	case FLIGHTSTATUS_FLIGHTMODE_ALTITUDEHOLD:
+	case FLIGHTSTATUS_FLIGHTMODE_FLIPOVERREV:
 		update_stabilization_desired(&cmd, &settings);
 		break;
 	case FLIGHTSTATUS_FLIGHTMODE_POSITIONHOLD:
@@ -1091,6 +1088,9 @@ static void update_stabilization_desired(ManualControlCommandData * manual_contr
                                                STABILIZATIONDESIRED_STABILIZATIONMODE_ATTITUDELQG,
                                                STABILIZATIONDESIRED_STABILIZATIONMODE_LQG };
 
+	const uint8_t FLIPOVER_SETTINGS[3] = {  STABILIZATIONDESIRED_STABILIZATIONMODE_MANUAL,
+                                       STABILIZATIONDESIRED_STABILIZATIONMODE_MANUAL,
+                                       STABILIZATIONDESIRED_STABILIZATIONMODE_DISABLED };
 	const uint8_t * stab_modes = ATTITUDE_SETTINGS;
 
 	uint8_t reprojection = STABILIZATIONDESIRED_REPROJECTIONMODE_NONE;
@@ -1157,6 +1157,10 @@ static void update_stabilization_desired(ManualControlCommandData * manual_contr
 			break;
 		case FLIGHTSTATUS_FLIGHTMODE_LQGLEVELING:
 			stab_modes = ATTITUDELQG_SETTINGS;
+			break;
+		case FLIGHTSTATUS_FLIGHTMODE_FLIPOVERREV:
+			stab_modes = FLIPOVER_SETTINGS;
+			thrust_mode = STABILIZATIONDESIRED_THRUSTMODE_FLIPOVERMODETHRUSTREVERSED;
 			break;
 		default:
 			{
@@ -1294,27 +1298,6 @@ bool validInputRange(int n, uint16_t value, uint16_t offset)
 	}
 
 	return (value >= (min - offset) && value <= (max + offset));
-}
-
-/**
- * @brief Apply deadband to Roll/Pitch/Yaw channels
- */
-static void applyDeadband(float *value, float deadband)
-{
-	if (deadband < 0.0001f) return; /* ignore tiny deadband value */
-	if (deadband >= 0.85f) return;	/* reject nonsensical db values */
-
-	if (fabsf(*value) < deadband) {
-		*value = 0.0f;
-	} else {
-		if (*value > 0.0f) {
-			*value -= deadband;
-		} else {
-			*value += deadband;
-		}
-
-		*value /= (1 - deadband);
-	}
 }
 
 /**
