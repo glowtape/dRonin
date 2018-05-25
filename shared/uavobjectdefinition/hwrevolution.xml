@@ -54,6 +54,7 @@
         <option>Telemetry</option>
         <option>IBus</option>
         <option>TBS Crossfire</option>
+        <option>VTX Config TBS SmartAudio</option>
       </options>
     </field>
     <field defaultvalue="Disabled" elements="1" name="FlexiPort" parent="HwShared.PortTypes" type="enum" units="function">
@@ -82,6 +83,7 @@
         <option>Telemetry</option>
         <option>IBus</option>
         <option>TBS Crossfire</option>
+        <option>VTX Config TBS SmartAudio</option>
       </options>
     </field>
     <field defaultvalue="Disabled" elements="1" name="RxPortUsart" parent="HwShared.PortTypes" type="enum" units="function">
@@ -108,6 +110,7 @@
         <option>Telemetry</option>
         <option>IBus</option>
         <option>TBS Crossfire</option>
+        <option>VTX Config TBS SmartAudio</option>
       </options>
     </field>
     <field defaultvalue="Radio" elements="1" name="SPIPeripheral" type="enum" units="function">
