@@ -986,6 +986,9 @@ static const struct pios_dmashot_timer_cfg dmashot_tim_cfg[] = {
 		.stream = DMA2_Stream1,
 		.channel = DMA_Channel_7,
 		.tcif = DMA_FLAG_TCIF1,
+
+		.irqchannel = DMA2_Stream1_IRQn,
+		.irqtcif = DMA_IT_TCIF1,
 	},
 	{
 		.timer = TIM14,
@@ -995,18 +998,27 @@ static const struct pios_dmashot_timer_cfg dmashot_tim_cfg[] = {
 		.stream = DMA1_Stream6,
 		.channel = DMA_Channel_2,
 		.tcif = DMA_FLAG_TCIF6,
+
+		.irqchannel = DMA1_Stream6_IRQn,
+		.irqtcif = DMA_IT_TCIF6,
 	},
 	{
 		.timer = TIM3,
 		.stream = DMA1_Stream2,
 		.channel = DMA_Channel_5,
 		.tcif = DMA_FLAG_TCIF2,
+
+		.irqchannel = DMA1_Stream2_IRQn,
+		.irqtcif = DMA_IT_TCIF2,
 	},
 	{
 		.timer = TIM5,
 		.stream = DMA1_Stream0,
 		.channel = DMA_Channel_6,
 		.tcif = DMA_FLAG_TCIF0,
+
+		.irqchannel = DMA1_Stream0_IRQn,
+		.irqtcif = DMA_IT_TCIF0,
 	}
 };
 

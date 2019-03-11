@@ -58,8 +58,9 @@ struct servo_timer {
 	uint16_t duty_cycle_1;                                                          // And for 1-bit
 
 	union dma_buffer buffer;                                                        // DMA buffer
-	uint8_t dma_started;                                                            // Whether DMA transfers have been initiated
+	uint8_t dma_active;                                                             // Whether DMA transfers have been initiated
 
+	uint8_t telemetry_enabled;
 };
 
 // DShot signal is 16-bit. Use a pause before and after to delimit signal and quell the timer CC
@@ -392,7 +393,7 @@ void PIOS_DMAShot_InitializeTimers(TIM_OCInitTypeDef *ocinit)
 		if (s_timer->dma->master_timer)
 			PIOS_DMAShot_TimerSetup(s_timer, s_timer->sysclock, s_timer->dshot_freq, ocinit, true);
 
-		s_timer->dma_started = 0;
+		s_timer->dma_active = 0;
 	}
 }
 
@@ -441,8 +442,18 @@ static void PIOS_DMAShot_DMASetup(struct servo_timer *s_timer)
 
 	DMA_Init(s_timer->dma->stream, &dma);
 
-	// Don't do interrupts.
+	// Don't do interrupts (yet).
 	DMA_ITConfig(s_timer->dma->stream, DMA_IT_TC, DISABLE);
+
+	// Init NVIC if defined.
+	if (!s_timer->dma->irqchannel) {
+		NVIC_InitTypeDef nvic;
+		nvic.NVIC_IRQChannel = s_timer->dma->irqchannel;
+		nvic.NVIC_IRQChannelPreemptionPriority = PIOS_IRQ_PRIO_HIGH;
+		nvic.NVIC_IRQChannelSubPriority = 0;
+		nvic.NVIC_IRQChannelCmd = ENABLE;
+		NVIC_Init(&nvic);
+	}
 }
 
 // Allocates an aligned buffer for DMA burst transfers. Returns uint32_t, since
@@ -497,7 +508,7 @@ void PIOS_DMAShot_TriggerUpdate()
 			continue;
 
 		// Wait for DMA to finish.
-		if(s_timer->dma_started) {
+		if(s_timer->dma_active) {
 			while(DMA_GetFlagStatus(s_timer->dma->stream, s_timer->dma->tcif) != SET) ;
 		}
 
@@ -544,8 +555,12 @@ void PIOS_DMAShot_TriggerUpdate()
 			TIM_Cmd(s_timer->dma->timer, ENABLE);
 		}
 
+		if (s_timer->telemetry_enabled && s_timer->dma->irqchannel) {
+			// Sure hope there's a handler defined.
+			DMA_ITConfig(s_timer->dma->stream, DMA_IT_TC, ENABLE);
+		}
 		DMA_Cmd(s_timer->dma->stream, ENABLE);
-		s_timer->dma_started = 1;
+		s_timer->dma_active = 1;
 	}
 }
 
@@ -565,4 +580,34 @@ bool PIOS_DMAShot_IsReady()
 bool PIOS_DMAShot_IsConfigured()
 {
 	return dmashot_cfg != NULL;
+}
+
+void PIOS_DMAShot_IRQHandler(const struct pios_dmashot_timer_cfg *cfg)
+{
+	if (!cfg) return;
+
+	PIOS_IRQ_Prologue();
+
+	// Retrieve servo timer crap. Consider making DMAShot config struct in BoardHWDef writeable
+	// and store a pointer to the servo timer there.
+	struct servo_timer *s_timer = NULL;
+	for (int i = 0; i < MAX_TIMERS; i++) {
+		// They're allocated sequentially, if there's a null, abort.
+		if (!servo_timers[i]) break;
+		if (servo_timers[i]->dma == cfg) {
+			s_timer = servo_timers[i];
+			break;
+		}
+	}
+
+	if (DMA_GetITStatus(cfg->stream, cfg->tcif) == SET) {
+		DMA_ClearITPendingBit(cfg->stream, cfg->tcif);
+
+		if (s_timer) {
+			s_timer->dma_active = 0;
+		}
+
+	}
+
+	PIOS_IRQ_Epilogue();
 }

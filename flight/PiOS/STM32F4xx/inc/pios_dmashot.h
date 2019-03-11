@@ -58,6 +58,9 @@ struct pios_dmashot_timer_cfg {
 	TIM_TypeDef *master_timer;
 	uint16_t master_config;
 
+	uint8_t irqchannel;
+	uint32_t irqtcif;
+
 };
 
 /**
@@ -143,5 +146,10 @@ void PIOS_DMAShot_WriteValue(const struct pios_tim_channel *servo_channel, uint1
  * @brief Triggers the configured DMA channels to fire and send throttle values to the timer DMAR and optional CCRx registers.
  */
 void PIOS_DMAShot_TriggerUpdate();
+
+/**
+ * @brief IRQ handler to deal with Bi-DShot telemetry.
+ */
+void PIOS_DMAShot_IRQHandler(const struct pios_dmashot_timer_cfg *cfg);
 
 #endif // PIOS_DMASHOT_H
